@@ -4,6 +4,8 @@ sustituye &define; -- pon aqui el nombre real de tu red a mano)
 Este es el mensaje del dia (MOTD). Editalo a tu gusto: se muestra a
 todos los usuarios al conectar y con el comando /MOTD.
 
+Al conectar entras automaticamente a #Chateanos, el canal general.
+
 Reglas basicas de la red:
  - Respeta a los demas usuarios.
  - No hagas spam ni flood.

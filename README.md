@@ -40,15 +40,130 @@ conf/
 
 `modules.conf` activa un set "completo" pensado para una red seria:
 IRCv3 (SASL, cap-notify, echo-message, etc.), TLS (OpenSSL), cloaking
-hmac-sha256, integracion con servicios, anti-flood (connectban,
-connflood, join/message/nickflood), filtro de mensajes, `/MONITOR`,
-`/WATCH`, `/SILENCE`, base de datos de X-lines persistente, y el
-juego completo de comandos de oper (SAJOIN, SAMODE, override,
+(cuenta + hmac-sha256, ver mas abajo), integracion con servicios,
+anti-flood (connectban, connflood, join/message/nickflood, callerid),
+filtro de mensajes, `/MONITOR`, `/WATCH`, `/SILENCE`, base de datos de
+X-lines persistente, historial de chat (`+H`), auto-join de canales,
+y el juego completo de comandos de oper (SAJOIN, SAMODE, override,
 CBAN, etc.) ya coordinado con las clases definidas en `opers.conf`.
 
 Al final de `modules.conf` hay una lista de modulos opcionales
 (WebSocket, DNSBL, geolocalizacion, LDAP, SQL, HTTP...) comentados,
 por si tu red los necesita.
+
+## Cloaks: "chateanos/user/cuenta" y "chateanos/support/cuenta"
+
+- **Usuarios normales**: en cuanto se identifican a una cuenta de
+  servicios (SASL o `/msg NickServ IDENTIFY`), su host mostrado pasa
+  a ser `chateanos/user/<su_cuenta>` de forma automática -- no hay que
+  hacer nada mas, es el modulo `cloak_user` (metodo `account`) el que
+  lo hace, y se recalcula solo en cuanto inician sesion. Mientras NO
+  esten identificados siguen viendo un cloak normal basado en su IP
+  (hmac-sha256), para que tengan privacidad tambien como anonimos.
+- **IRCops**: InspIRCd no tiene forma de generar automaticamente un
+  cloak distinto solo por el hecho de ser oper (el sistema de cloaks
+  no sabe si alguien "es oper", solo conoce cuenta/IP/nick/certificado).
+  Por eso el vhost `chateanos/support/<cuenta>` de cada IRCop se pone
+  a mano en su propio bloque `<oper>` de `opers.conf` (ya viene
+  rellenado como ejemplo) -- es exactamente como lo hacian redes reales
+  tipo Freenode/Libera con `red/staff/nick`. Como de todas formas vas a
+  crear cada cuenta de IRCop tu mismo, es el mismo paso, solo hay que
+  poner el nombre correcto en el campo `vhost`.
+
+## Canales automaticos: #Chateanos y #IRCops
+
+- `#Chateanos`: se crea solo al arrancar el servidor (modulo
+  `permchannels`) y **todos** los usuarios entran a el automaticamente
+  al conectar (modulo `conn_join`). Tiene historial de chat (`+H`)
+  activado por defecto.
+- `#IRCops`: tambien se crea solo, pero es `+s +i` (oculto e
+  invitacion-only) -- los usuarios normales no lo ven ni pueden
+  entrar. Los IRCops (las 3 categorias) entran automaticamente en
+  cuanto hacen `/OPER` (modulo `operjoin`, con `override="yes"` para
+  saltarse el `+i`).
+- Puedes cambiar los nombres de canal editando `<autojoin channel=...>`
+  y `<operjoin channel=...>` en `modules.conf`, y los `<permchannels
+  channel=...>` correspondientes.
+
+## Historial de chat (duracion)
+
+El modulo `chanhistory` esta activo con un tope de **100 lineas / 3
+dias** (`<chanhistory maxlines="100" maxduration="3d">` en
+`modules.conf`); eso es el MAXIMO que se puede pedir en cualquier
+canal. Cada canal decide su propio historial con `/MODE #canal +H
+lineas:duracion` (por ejemplo `+H 50:1d`) -- los chanops lo activan, o
+via plantilla de ChanServ si usas servicios. `#Chateanos` (50
+lineas/1 dia) y `#IRCops` (100 lineas/3 dias) ya lo traen activado
+desde que se crean.
+
+## Modos de usuario y canal ya disponibles
+
+Con los modulos activados por defecto tienes, entre otros:
+- **Usuario**: `+x` cloak (automatico al conectar), `+c` commonchans
+  (solo recibe PM de quien comparta un canal contigo), `+g` callerid
+  (bloquea PMs de desconocidos salvo `/ACCEPT`), `+B` bot, `+z`
+  solo-TLS, `+s`/snomasks y demas modos de oper.
+- **Canal**: `+e` excepciones de ban, `+I` excepciones de invitacion,
+  `+H` historial, `+g` filtro de chanops, `+f`/`+j`/`+F` anti-flood
+  (mensajes/joins/nicks), `+C`/`+T` bloquear CTCP/NOTICE, `+N`/`+Q`
+  bloquear nick-change/kicks, `+S`/`+c` quitar/bloquear color, `+P`
+  canal permanente, `+z` solo-TLS (con sslmodes), y las mascaras
+  extendidas (extbans) `m:` `a:` `s:` `n:` etc.
+
+Lista completa de modos: https://docs.inspircd.org/4/user-modes/ y
+https://docs.inspircd.org/4/channel-modes/
+
+## Categorias de IRCop
+
+| Tipo            | Puede...                                             |
+|-----------------|-------------------------------------------------------|
+| **Administrador** | Todo: DIE/RESTART/REHASH, enlaces de servidor, bans/kills, SA*, cambiar host/ident de otros. |
+| **IRCop**          | Bans/kills/SA* y moderacion completa, pero SIN apagar el servidor ni tocar enlaces. |
+| **Soporte** (novato) | Solo `/CHECK` (investigar), `/OJOIN` (entrar a mediar) y `/SAKICK`. Nada de bans, kills, ni cambiar host/ident. |
+
+Las clases y comandos exactos de cada tipo estan al principio de
+`opers.conf`, en `<class>`/`<type>`.
+
+## Escala: ¿aguanta 10 000+ usuarios?
+
+La configuracion por si sola ya no limita a 10 000 (se subieron
+`<connect:limit>` y `<performance:softlimit>` a 20000, `somaxconn` a
+1024, y `<whowas:maxgroups>` a 20000), pero para sostener esa carga en
+produccion de verdad tambien necesitas, FUERA de estos archivos:
+
+1. **Descriptores de fichero (ulimit)**: cada usuario conectado, cada
+   enlace y cada archivo de log consume uno. Con systemd, en el
+   `.service` de inspircd:
+   ```
+   [Service]
+   LimitNOFILE=65535
+   ```
+   Sin systemd, `ulimit -n 65535` antes de arrancar (y ajustar
+   `/etc/security/limits.conf` para que sea persistente).
+2. **sysctl del sistema** (para que `somaxconn=1024` de arriba sirva
+   de algo, y para no quedarte sin puertos/conexiones en TIME_WAIT):
+   ```
+   net.core.somaxconn = 1024
+   net.ipv4.ip_local_port_range = 1024 65535
+   net.ipv4.tcp_tw_reuse = 1
+   ```
+3. **CPU/RAM**: InspIRCd es esencialmente de un solo hilo para el bucle
+   principal; con 10 mil usuarios activos (mensajes, joins, floods)
+   conviene una CPU con buen rendimiento por nucleo, no muchos nucleos.
+   Calcula RAM aproximada: unos pocos KB por usuario conectado mas el
+   historial de canales (`chanhistory`) y bans.
+4. **Varios servidores enlazados (hub + leaves)**: a partir de varios
+   miles de usuarios concurrentes, muchas redes reparten la carga en
+   varios servidores `leaf` conectados a un `hub`, en vez de un unico
+   proceso. `links.conf` ya trae la plantilla de `<link>` para esto;
+   solo tienes que anadir mas servidores. Reparte tambien la
+   resolucion DNS/TLS entre ellos.
+5. **DNSBL/anti-abuso**: con mas usuarios, mas bots/abuso. Considera
+   activar el modulo `dnsbl` (comentado al final de `modules.conf`).
+
+Sin los puntos 1 y 2 (limites del sistema operativo), el ircd se
+quedara sin descriptores de fichero mucho antes de llegar a 10 000
+conexiones, sin importar lo que digan estos `.conf`.
 
 ## Instalacion rapida
 

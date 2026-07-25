@@ -1,10 +1,16 @@
 Bienvenido/a, IRCop de TU_RED (EDITAR: pon aqui el nombre real de tu
 red; este archivo es texto plano y no sustituye variables &define;).
 
+Al hacer /OPER entras automaticamente a #IRCops (canal interno,
+oculto para el resto de usuarios).
+
 Recuerda:
  - Usa tus poderes con responsabilidad y transparencia.
  - El modulo "override" esta configurado como "noisy": el canal vera
    un aviso cuando hagas un override.
  - Las contrasenas de IRCop nunca se comparten ni se reutilizan.
+ - Soporte (novato): solo tienes CHECK, OJOIN y SAKICK. Si necesitas
+   banear, matar o cambiar el host de alguien, avisa a un IRCop o
+   Administrador en #IRCops.
 
 Consulta /HELP para ver los comandos disponibles segun tu clase.
