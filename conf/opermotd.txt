@@ -1,0 +1,10 @@
+Bienvenido/a, IRCop de TU_RED (EDITAR: pon aqui el nombre real de tu
+red; este archivo es texto plano y no sustituye variables &define;).
+
+Recuerda:
+ - Usa tus poderes con responsabilidad y transparencia.
+ - El modulo "override" esta configurado como "noisy": el canal vera
+   un aviso cuando hagas un override.
+ - Las contrasenas de IRCop nunca se comparten ni se reutilizan.
+
+Consulta /HELP para ver los comandos disponibles segun tu clase.
