@@ -16,6 +16,8 @@ conf/
   opers.conf       # clases, tipos y cuentas de IRCop  <- EDITAR
   links.conf       # enlaces de servidor y de servicios <- EDITAR
   filter.conf       # filtro de palabras/spam (opcional, vacio por defecto)
+  help.conf         # base de /HELP (oficial de InspIRCd, no hace falta tocarlo)
+  dnsbl.conf        # listas negras de IP (DroneBL), no hace falta tocarlo
   motd.txt          # mensaje del dia para usuarios
   opermotd.txt       # mensaje del dia para IRCops
 ```
@@ -39,17 +41,25 @@ conf/
 ## Modulos activados por defecto
 
 `modules.conf` activa un set "completo" pensado para una red seria:
-IRCv3 (SASL, cap-notify, echo-message, etc.), TLS (OpenSSL), cloaking
-(cuenta + hmac-sha256, ver mas abajo), integracion con servicios,
-anti-flood (connectban, connflood, join/message/nickflood, callerid),
-filtro de mensajes, `/MONITOR`, `/WATCH`, `/SILENCE`, base de datos de
+IRCv3 (SASL, cap-notify, echo-message, etc.), TLS (OpenSSL) con
+recarga de certificados por senal (`sslrehashsignal`, para renovar con
+Let's Encrypt sin reiniciar), cloaking (cuenta + hmac-sha256, ver mas
+abajo), integracion con servicios, `/HELP`, anti-flood (connectban,
+connflood, join/message/nickflood, callerid), **DNSBL activo contra
+bots/proxies conocidos** (DroneBL, ver `dnsbl.conf`), filtro de
+mensajes, proteccion de nombres de canal contra colores/phishing
+(`channames`), `/MONITOR`, `/WATCH`, `/SILENCE`, base de datos de
 X-lines persistente, historial de chat (`+H`), auto-join de canales,
-y el juego completo de comandos de oper (SAJOIN, SAMODE, override,
-CBAN, etc.) ya coordinado con las clases definidas en `opers.conf`.
+`/CLEARCHAN` para cortar raids de golpe, un canal `#IRCops` que recibe
+en vivo las notificaciones clave de conexiones/bans/kills
+(`chanlog`), y el juego completo de comandos de oper (SAJOIN, SAMODE,
+override, CBAN, etc.) ya coordinado con las clases definidas en
+`opers.conf`.
 
-Al final de `modules.conf` hay una lista de modulos opcionales
-(WebSocket, DNSBL, geolocalizacion, LDAP, SQL, HTTP...) comentados,
-por si tu red los necesita.
+Al final de `modules.conf` hay una lista larga de modulos opcionales
+(WebSocket, geolocalizacion, LDAP, SQL, HTTP, anti-repeat-flood,
+HSTS/STS, ident, y varios extbans mas de nicho) comentados con una
+linea explicando cada uno, por si tu red los necesita.
 
 ## Cloaks: "chateanos/user/cuenta" y "chateanos/support/cuenta"
 
