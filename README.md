@@ -11,15 +11,15 @@ anti-flood ya activada.
 
 ```
 conf/
-  inspircd.conf   # archivo principal, incluye a todos los demas
+  inspircd.conf    # archivo principal, incluye a todos los demas
   modules.conf     # modulos activados y su configuracion
-  opers.conf       # clases, tipos y cuentas de IRCop  <- EDITAR
+  opers.conf       # clases, tipos y cuentas de IRCop   <- EDITAR
   links.conf       # enlaces de servidor y de servicios <- EDITAR
-  filter.conf       # filtro de palabras/spam (opcional, vacio por defecto)
-  help.conf         # base de /HELP (oficial de InspIRCd, no hace falta tocarlo)
-  dnsbl.conf        # listas negras de IP (DroneBL), no hace falta tocarlo
-  motd.txt          # mensaje del dia para usuarios
-  opermotd.txt       # mensaje del dia para IRCops
+  filter.conf      # filtro de palabras/spam (opcional, vacio por defecto)
+  help.conf        # base de /HELP (oficial de InspIRCd, no hace falta tocarlo)
+  dnsbl.conf       # listas negras de IP (DroneBL), no hace falta tocarlo
+  motd.txt         # mensaje del dia para usuarios
+  opermotd.txt     # mensaje del dia para IRCops
 ```
 
 ## Que tienes que tocar tu
@@ -61,6 +61,15 @@ Al final de `modules.conf` hay una lista larga de modulos opcionales
 HSTS/STS, ident, y varios extbans mas de nicho) comentados con una
 linea explicando cada uno, por si tu red los necesita.
 
+**Nota sobre `/HELP`**: `help.conf` es la base de ayuda OFICIAL de
+InspIRCd tal cual, y documenta TODOS los comandos que existen en
+cualquier instalacion tipica -- incluye alguno (por ejemplo `VHOST`,
+el comando standalone, no el HostServ de servicios) que a proposito
+NO esta activado en `modules.conf` porque es redundante con servicios.
+Si un usuario hace `/HELP vhost` vera la ayuda pero el comando no
+funcionara. No es un error, es que el fichero de ayuda es generico;
+si te molesta, puedes borrar ese `<helptopic>` de `help.conf`.
+
 ## Cloaks: "chateanos/user/cuenta" y "chateanos/support/cuenta"
 
 - **Usuarios normales**: en cuanto se identifican a una cuenta de
@@ -91,9 +100,13 @@ linea explicando cada uno, por si tu red los necesita.
   entrar. Los IRCops (las 3 categorias) entran automaticamente en
   cuanto hacen `/OPER` (modulo `operjoin`, con `override="yes"` para
   saltarse el `+i`).
-- Puedes cambiar los nombres de canal editando `<autojoin channel=...>`
-  y `<operjoin channel=...>` en `modules.conf`, y los `<permchannels
-  channel=...>` correspondientes.
+- Los nombres de canal salen de `<define name="generalChannel">` y
+  `<define name="staffChannel">` en `inspircd.conf` (arriba del todo,
+  junto a `networkName`) -- cambialos ahi y se propagan solos a
+  `autojoin`, `operjoin`, `permchannels` y `chanlog` en `modules.conf`.
+  La UNICA excepcion es `motd.txt`/`opermotd.txt`: son texto plano y
+  no leen `<define>`, asi que si renombras los canales tienes que
+  actualizar esos dos ficheros a mano.
 
 ## Historial de chat (duracion)
 
@@ -168,8 +181,10 @@ produccion de verdad tambien necesitas, FUERA de estos archivos:
    proceso. `links.conf` ya trae la plantilla de `<link>` para esto;
    solo tienes que anadir mas servidores. Reparte tambien la
    resolucion DNS/TLS entre ellos.
-5. **DNSBL/anti-abuso**: con mas usuarios, mas bots/abuso. Considera
-   activar el modulo `dnsbl` (comentado al final de `modules.conf`).
+5. **DNSBL/anti-abuso**: ya viene activo por defecto (DroneBL, ver
+   `dnsbl.conf`) precisamente porque con mas usuarios hay mas
+   bots/abuso -- no tienes que hacer nada aqui, es solo para que sepas
+   por que esta encendido.
 
 Sin los puntos 1 y 2 (limites del sistema operativo), el ircd se
 quedara sin descriptores de fichero mucho antes de llegar a 10 000
@@ -182,17 +197,78 @@ conexiones, sin importar lo que digan estos `.conf`.
 2. Copia el contenido de `conf/` al directorio de configuracion de tu
    instalacion (por defecto algo como `/etc/inspircd` o
    `<prefix>/conf`).
-3. Genera un certificado TLS (por ejemplo con Let's Encrypt, o uno
-   autofirmado para pruebas) y coloca `cert.pem`/`key.pem` en ese
-   mismo directorio, o ajusta las rutas en `modules.conf`.
+3. Genera el certificado TLS y coloca `cert.pem`/`key.pem` en ese
+   mismo directorio (o ajusta las rutas en `modules.conf`):
+   - **Let's Encrypt (recomendado para produccion)**, asumiendo que
+     `irc.tudominio.com` ya resuelve a este servidor:
+     ```
+     certbot certonly --standalone -d irc.tudominio.com
+     cp /etc/letsencrypt/live/irc.tudominio.com/fullchain.pem conf/cert.pem
+     cp /etc/letsencrypt/live/irc.tudominio.com/privkey.pem conf/key.pem
+     ```
+     Let's Encrypt caduca a los 90 dias -- automatiza la renovacion
+     (`certbot renew`) con un cron/systemd timer, y anade un
+     deploy-hook que copie los ficheros y avise a InspIRCd (ver
+     "Operacion" mas abajo, `sslrehashsignal`).
+   - **Autofirmado (solo para pruebas, los clientes avisaran de
+     certificado no confiable)**:
+     ```
+     openssl req -x509 -newkey rsa:4096 -nodes -days 365 \
+       -keyout conf/key.pem -out conf/cert.pem \
+       -subj "/CN=irc.tudominio.com"
+     ```
 4. Edita `inspircd.conf`, `modules.conf`, `opers.conf` y `links.conf`
    como se indica arriba.
-5. Valida la config antes de arrancar:
+5. Abre en el firewall los puertos que vayas a usar: **6697** (TLS,
+   clientes), **6667** (texto plano, clientes -- opcional, puedes
+   quitarlo), y si vas a enlazar mas servidores/servicios, **7005**
+   (TLS entre servidores) y **7000** (texto plano entre servidores,
+   pensado para localhost/red interna, no lo expongas a internet).
+6. Valida la config antes de arrancar:
    ```
    inspircd --config /ruta/a/conf/inspircd.conf --validate
    ```
-6. Arranca el servidor: `inspircd start` (o el metodo que use tu
+7. Arranca el servidor: `inspircd start` (o el metodo que use tu
    paquete/systemd).
+
+**Fuera de alcance de este repo**: la instalacion y configuracion de
+Anope/Atheme (servicios: NickServ/ChanServ/etc) es un paquete e
+instalacion aparte. Aqui solo dejamos preparado el lado de InspIRCd
+para que se enlacen (`links.conf`, modulos `services`/`sasl`), pero
+tienes que instalar y configurar el paquete de servicios tu mismo
+siguiendo su propia documentacion, usando el mismo nombre de servidor
+(`&servicesServer;`) y las mismas contrasenas que pongas en
+`links.conf`.
+
+## Operacion (log rotation, backups, renovar TLS)
+
+- **Logs**: InspIRCd no rota sus propios logs, crecen sin limite. Usa
+  `logrotate` del sistema; como no soporta reabrir el fichero solo con
+  moverlo, dile que rehashee tras rotar (esto reabre `inspircd.log`):
+  ```
+  # /etc/logrotate.d/inspircd
+  /ruta/a/data/inspircd.log {
+      weekly
+      rotate 8
+      compress
+      missingok
+      postrotate
+          kill -HUP $(cat /ruta/a/data/inspircd.pid) 2>/dev/null || true
+      endscript
+  }
+  ```
+- **Renovar TLS sin caidas**: en el deploy-hook de certbot, copia los
+  `.pem` nuevos a `conf/` y manda `kill -USR1 $(cat inspircd.pid)`
+  (modulo `sslrehashsignal`, ya activo) para que recargue el
+  certificado sin rehash completo ni reinicio.
+- **systemd**: si tu paquete ya trae una unidad `inspircd.service`, NO
+  la sobreescribas -- usa un drop-in (`systemctl edit inspircd`) para
+  anadir `LimitNOFILE=65535` u otros overrides, asi sobreviven a
+  actualizaciones del paquete.
+- **Backups**: lo minimo que te interesa respaldar periodicamente son
+  `conf/*.conf`, los certificados, `data/xline.db` (bans) y
+  `data/permchannels.conf` (si `permchannels` acaba escribiendo ahi
+  canales que se registren en caliente).
 
 ## Referencias oficiales
 
