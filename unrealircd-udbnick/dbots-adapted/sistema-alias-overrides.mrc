@@ -41,13 +41,22 @@ alias s {
 }
 
 ; New alias, add it right after the one above. Maps a persona's current
-; nick to its dedicated UnrealIRCd 6 client socket. Extend this one line
-; per persona as you wire up the rest (op.mrc, ce.mrc, gl.mrc, etc.),
-; following the exact same on:sockopen/on:sockread pattern that
-; sockets-bootstrap.mrc uses for nickserv/chanserv.
+; nick to its dedicated UnrealIRCd 6 client socket. All 11 personas from
+; %conf.tbots. are wired up here, matching the full sockets-bootstrap.mrc
+; in this same directory (live-tested, not just nickserv/chanserv --
+; see DBOTS-MIGRATION.md "parte 3").
 alias dbots6.socketfor {
   if ($1 == $nickserv) { return dbots_nickserv }
   if ($1 == $chanserv) { return dbots_chanserv }
+  if ($1 == $cregserv) { return dbots_cregserv }
+  if ($1 == $operserv) { return dbots_operserv }
+  if ($1 == $centerserv) { return dbots_centerserv }
+  if ($1 == $globalserv) { return dbots_globalserv }
+  if ($1 == $proxyserv) { return dbots_proxyserv }
+  if ($1 == $noticiasserv) { return dbots_noticiasserv }
+  if ($1 == $helpserv) { return dbots_helpserv }
+  if ($1 == $memoserv) { return dbots_memoserv }
+  if ($1 == $shadowserv) { return dbots_shadowserv }
   return dbots_nickserv
 }
 

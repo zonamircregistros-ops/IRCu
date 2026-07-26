@@ -108,6 +108,7 @@ static void udbnick_send_pending_identify(Client *client)
 {
 	ModData *m = &moddata_local_client(client, udbnick_md);
 	char target[NICKLEN + HOSTLEN + 2];
+	char identify_cmd[512];
 	const char *idparv[3];
 
 	if (!m->str)
@@ -115,12 +116,16 @@ static void udbnick_send_pending_identify(Client *client)
 	if (client->user)
 	{
 		snprintf(target, sizeof(target), "%s@%s", UDBNICK_NICKSERV_NICK, me.name);
+		/* Must be the full "IDENTIFY <pass>" command text, not just the
+		 * bare password -- dBOTS parses the first word of the PRIVMSG
+		 * body as the command name. */
+		snprintf(identify_cmd, sizeof(identify_cmd), "IDENTIFY %s", m->str);
 		/* Deliver exactly as if the client had typed it by hand.
 		 * parv[0] is the sender's own name, per convention (see e.g.
 		 * svsjoin.c's do_cmd() call), not NULL. */
 		idparv[0] = client->name;
 		idparv[1] = target;
-		idparv[2] = m->str;
+		idparv[2] = identify_cmd;
 		do_cmd(client, NULL, "PRIVMSG", 3, idparv);
 		unreal_log(ULOG_INFO, "udbnick", "UDBNICK_AUTOIDENTIFY", client,
 		           "$client.details auto-IDENTIFY sent to NickServ via NICK nick:pass shim");

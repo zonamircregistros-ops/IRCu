@@ -133,21 +133,58 @@ autentico: `/oper`, `/quote DBOTSSVS SWHOIS ...` confirmado por
 `/WHOIS`), y despues **con dBOTS real cargado**, aplicando los parches
 de `dbots-adapted/` a una copia de dBOTS.
 
-Resultado con dBOTS real: las personas NickServ y ChanServ conectaron
-como clientes opereados, y `/msg NiCK REGISTER pruebas@gmail.com` desde
-un tercer cliente disparo el flujo REAL de registro de `ni.mrc` (sin
-modificar), incluida la generacion del codigo de verificacion por email.
-**Detalle completo, con las respuestas textuales de dBOTS, en
-[`DBOTS-MIGRATION.md`](DBOTS-MIGRATION.md) "Pruebas reales (parte 2)".**
-Esa ronda de pruebas tambien encontro y corrigio tres bugs reales mas
-(uno en `udbnick.c`: ruta relativa vs `PERMDATADIR`; dos en el propio
-dBOTS adaptado: `p.m` forjaba un prefijo que Unreal 6 rechaza, y mi
-suposicion inicial sobre la sintaxis de `REGISTER` era incorrecta).
+Resultado con dBOTS real (parte 2): las personas NickServ y ChanServ
+conectaron como clientes opereados, y `/msg NiCK REGISTER
+pruebas@gmail.com` desde un tercer cliente disparo el flujo REAL de
+registro de `ni.mrc` (sin modificar), incluida la generacion del codigo
+de verificacion por email. Esa ronda tambien encontro y corrigio tres
+bugs reales (uno en `udbnick.c`: ruta relativa vs `PERMDATADIR`; dos en
+el propio dBOTS adaptado: `p.m` forjaba un prefijo que Unreal 6 rechaza,
+y mi suposicion inicial sobre la sintaxis de `REGISTER` era incorrecta).
+
+**Parte 3 -- las 11 personas, login completo con contraseña, y CReG con
+aprobacion de oper.** Se completo lo que quedaba pendiente: registro
+de nick -> validacion -> **login real usando `/NICK nick:contraseña`
+tras reconectar** (no solo el registro), **CReG** (registro de canal
+con categoria+contraseña y aprobacion por un oper via `ACEPTA`), y
+comandos reales (no solo `AYUDA`) en **OPeR, CeNTeR, GLoBaL, PRoXy,
+NoTiCiaS, HeLP y MeMO** -- las 11 personas conectando y opeando a la
+vez. Esta ronda encontro y corrigio cuatro bugs reales mas en dBOTS
+(la propia instruccion de login que dBOTS le muestra al usuario
+registrado tenia la contraseña "envenenada" con datos de mas; el
+chequeo de target de IDENTIFY solo aceptaba una de las dos formas que
+el resto del propio codigo de dBOTS ya acepta; la promocion automatica
+a nick "root" nunca se disparaba; y CReG guardaba la identidad del
+fundador de forma que el propio chequeo de "¿tiene @ en el canal?"
+nunca podia pasar), mas un bug de arranque (`GLOBAL` hacia que el bot
+GLoBaL se desconectara a si mismo via un SQLINE contra su propio nick,
+herencia de un mecanismo de introduccion de cliente que ya no aplica
+bajo esta arquitectura). **Detalle completo, con las respuestas
+textuales de dBOTS para cada bot, en
+[`DBOTS-MIGRATION.md`](DBOTS-MIGRATION.md) "Pruebas reales (parte 3)".**
 
 (Para reproducir `tests/test_udbnick.py` tal cual: `python3
 unrealircd-udbnick/tests/test_udbnick.py`, editando `HOST`/`PORT` si tu
 ircd no esta en `127.0.0.1:6667` -- pero recuerda la nota de arriba
 sobre que subtests siguen aplicando a la v2.)
+
+## Antes de desplegar en tu red real (checklist rapida)
+
+- Copia (o crea vacios) los directorios `database/`,
+  `database/nickserv/`, `database/chanserv/`, `database/cregserv/`,
+  `database/cregserv/canales/` y `database/cregserv/nicks/` dentro de tu
+  copia de dBOTS. mIRC no crea carpetas al escribir un `.db` -- si
+  faltan, el registro "funciona" en la conversacion pero nunca persiste
+  de verdad, con fallos silenciosos.
+- En `dbots.conf`, `[otras] servidor=` tiene que ser el nombre REAL de
+  tu servidor Unreal 6 (el mismo `set::name` de `unrealircd.conf`), no
+  un valor heredado de una instalacion antigua bajo UDB.
+- Aplica los parches de `dbots-adapted/` (`sistema-alias-overrides.mrc`,
+  `sockets-bootstrap.mrc`, `ni-fixes.mrc`, `cr-fixes.mrc`) -- sin ellos,
+  el login por contraseña y el registro de canales no funcionan aunque
+  todo lo demas este bien configurado. Ver
+  [`DBOTS-MIGRATION.md`](DBOTS-MIGRATION.md) "Pruebas reales (parte 3)"
+  para el porque de cada uno.
 
 ## Limitaciones conocidas (honestas, no las escondo)
 

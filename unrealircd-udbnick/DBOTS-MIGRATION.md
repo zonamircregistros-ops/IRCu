@@ -474,3 +474,243 @@ siguiente iteracion, o tu equipo) los aplique sin ambigüedad.
   con dBOTS real (ni.mrc/ch.mrc no lo necesitaron para registro de
   nick), pero ya estaba probado por separado con mIRC real en la sesion
   anterior (ver README principal de `udbnick`).
+
+## Pruebas reales (parte 3) -- las 11 personas, login completo, CReG con aprobacion de oper
+
+Esta ronda responde directamente a lo que quedaba pendiente de la parte
+2: **login real con la contraseña** (no solo el registro), **CReG**
+(registro de canales, categoria+contraseña, aprobacion por un oper) y
+**los 9 bots restantes** (OPeR, CeNTeR, GLoBaL, PRoXy, NoTiCiaS, HeLP,
+MeMO, y SHaDoW solo hasta donde se puede probar). Mismo entorno que la
+parte 2: mIRC 6.2 real + dBOTS real + UnrealIRCd 6.2.7-git compilado,
+sin mocks.
+
+`sockets-bootstrap.mrc` y `sistema-alias-overrides.mrc` en este
+directorio ya reflejan la version final: las 11 personas conectando
+(antes solo documentaban nickserv+chanserv, aunque en pruebas previas ya
+se habian probado las 11 -- quedo desactualizado, corregido ahora).
+
+### Bugs reales encontrados y corregidos en esta ronda
+
+Cuatro bugs de codigo (todos en dBOTS mismo, no en el modulo `udbnick.c`
+salvo el primero) mas dos huecos de despliegue (directorios que faltan,
+config por defecto incorrecta):
+
+1. **`udbnick.c`: el PRIVMSG de auto-IDENTIFY mandaba solo la
+   contraseña, sin la palabra `IDENTIFY`.** El shim construia
+   `PRIVMSG NickServ@servidor :<contraseña>` en vez de
+   `PRIVMSG NickServ@servidor :IDENTIFY <contraseña>`. dBOTS recibia la
+   contraseña como si fuera el NOMBRE del comando y respondia "Comando
+   desconocido". Corregido: `src/udbnick.c` ahora arma
+   `"IDENTIFY %s"` antes de mandarlo. Ya esta en el `.c` de este repo.
+
+2. **`ni.mrc`, `nickserv.registra2`: las instrucciones de login que
+   dBOTS le muestra al usuario tras registrarse usaban `$o` (mascara
+   completa `nick!user@host`) en vez del nick a secas.** Un usuario que
+   copiara literalmente lo que dBOTS le dice que escriba
+   (`/nick TestLogin!Mew@Clk-E7BB8D1A!<contraseña>`) mandaria una
+   contraseña incorrecta (con el `user@host` de propina). Corregido en
+   `dbots-adapted/ni-fixes.mrc` (fix 1).
+
+3. **`ni.mrc`, `nickserv.identify`: el chequeo de que el IDENTIFY se
+   mando al target correcto (`NiCK@servidor`) solo aceptaba la forma
+   con `@servidor`, nunca el nick a secas.** Bajo UnrealIRCd 6, un
+   PRIVMSG a `nick@servidor` le llega al destinatario con el target ya
+   normalizado al nick a secas (confirmado a mano, sin pasar por
+   `udbnick.c`: `/msg NiCK@irc.example.org IDENTIFY <contraseña-real>`
+   escrito directamente en mIRC tambien lo rechazaba). Cada UNO de los
+   otros diez dispatchers de la suite (`ce.mrc`, `ch.mrc`, `cr.mrc`,
+   `gl.mrc`, `he.mrc`, `me.mrc`, `ni.mrc` mismo en su despachador
+   principal, `no.mrc`, `op.mrc`, `pr.mrc`) ya aceptaba ambas formas --
+   este chequeo especifico dentro de `nickserv.identify` era el unico
+   que no. Corregido en `dbots-adapted/ni-fixes.mrc` (fix 2), alineandolo
+   con el resto del propio codigo de dBOTS.
+
+4. **`ni.mrc`, `nickserv.c.r`: la promocion automatica a "root" nunca
+   se disparaba**, por la misma familia de bug que el 2: comparaba
+   `$r.c($1)` (con `$1` = mascara completa, viene de `i.n $o`) contra
+   `dbots.conf`'s `root=` (un nick a secas). Nunca podian coincidir.
+   Confirmado en vivo: el nick configurado como root se identificaba
+   con normalidad pero se quedaba en `status.db` con nivel 3 (usuario
+   normal) en vez de 8/9 (admin de red), y por tanto **CReG ACEPTA**
+   (aprobar el registro de un canal) le devolvia "Permiso denegado".
+   Corregido en `dbots-adapted/ni-fixes.mrc` (fix 3).
+
+5. **`cr.mrc`, `cregserv.registra`: el registro de canal guardaba `$o`
+   (mascara completa) como identidad del fundador**, pero el handler
+   que confirma el registro compara esa identidad contra el nick a
+   secas que devuelve la respuesta WHO del canal. Nunca coincidian.
+   Confirmado en vivo: **todo** intento de `REGISTRA` fallaba con
+   `ERROR: No tienes @ en el canal #testchan`, incluso siendo
+   literalmente el fundador recien opeado por crear el canal. Corregido
+   en `dbots-adapted/cr-fixes.mrc`.
+
+6. **`globalserv.e.g` (usado por `GLOBAL`) intenta re-introducir el
+   propio persona bot via el mecanismo legado de enlace de servidor
+   (`SQLINE` + burst `NICK` de 8 parametros) si no lo encuentra ya
+   registrado en `bots.db`.** Bajo la arquitectura original (dBOTS
+   enlazado como servidor), esa bookkeeping la hacia `c.b` al introducir
+   cada persona la primera vez. Esta adaptacion nunca llama a `c.b` --
+   las personas nacen como clientes NICK/USER normales -- asi que
+   `bots.db` se queda vacio y `globalserv.e.g` intenta "re-introducir"
+   a GLoBaL mandando `SQLINE GLoBaL :...` **contra su propio nick
+   actualmente conectado**. UnrealIRCd mata al cliente que coincide con
+   el SQLINE que se acaba de añadir -- es decir, GLoBaL se desconecta a
+   si mismo. Confirmado en vivo: `/msg GLoBaL GLOBAL <mensaje>` tiraba
+   la conexion de GLoBaL cada vez, antes del fix. Corregido sembrando
+   `bots.db` con los 11 nicks de las personas al arrancar, dentro de
+   `conectar.u6` (ver `sockets-bootstrap.mrc` actualizado). Con el fix,
+   `GLOBAL` funciona y GLoBaL se queda conectado.
+
+7. **Directorios de `database/` que faltan.** dBOTS espera que existan
+   de antemano (no los crea el, `write`/`writeini` de mIRC no crean
+   carpetas): `database/`, `database/nickserv/`, `database/chanserv/`,
+   `database/cregserv/`, `database/cregserv/canales/`,
+   `database/cregserv/nicks/`. Si faltan, los fallos son silenciosos o
+   casi (un `* /write: unable to open ...` en el mejor caso) y el
+   sintoma visible es que el registro "funciona" en la conversacion
+   pero nunca persiste (p.ej. `n.r`/`n.i` siguen devolviendo "no"
+   despues de un login aparentemente exitoso). Esto **no es un bug de
+   la adaptacion** -- es una carpeta que el paquete de dBOTS trae vacia
+   normalmente y que se perdio en esta copia de pruebas -- pero merece
+   quedar dicho: verifica que exista toda esa estructura antes de dar
+   por buena una prueba.
+
+8. **`dbots.conf`'s `[otras] servidor=` tiene que ser el nombre REAL del
+   servidor Unreal 6 (`set::name` en `unrealircd.conf`, p.ej.
+   `irc.example.org`)**, no un valor de ejemplo heredado de una
+   instalacion antigua bajo UDB (esta copia de pruebas traia
+   `servidor=deep.space`). Este valor es exactamente el que
+   `nickserv.identify` compara contra el target del PRIVMSG (fix 3 de
+   arriba) -- si no coincide con el nombre real del ircd, IDENTIFY
+   nunca puede pasar la verificacion aunque el resto este bien.
+
+### Transcript resumido: registro -> login completo (NickServ)
+
+```
+/msg NiCK REGISTER testlogin@gmail.com
+<NiCK> ... (codigo de verificacion, arte ASCII) ...
+/msg NiCK validar <codigo>
+<NiCK> El nick TestLogin!Mew@Clk-E7BB8D1A esta registrado bajo tu cuenta testlogin@gmail.com
+<NiCK> Tu contraseña temporal es bE75jWq2qGVK. Utilice /nick TestLogin!bE75jWq2qGVK para identificarse.
+```
+Reconexion desde cero con `NICK TestLogin:bE75jWq2qGVK` (sintaxis del
+shim `udbnick.c`, tal cual la usaria un cliente real configurado con
+esa sintaxis):
+```
+-> Server: NICK TestLogin:bE75jWq2qGVK
+[udbnick.c manda automaticamente, en nombre del cliente:]
+PRIVMSG NiCK@irc.example.org :IDENTIFY bE75jWq2qGVK
+```
+`database/status.db` tras la reconexion:
+```
+[status]
+TestLogin!Mew@Clk-E7BB8D1A=3
+```
+Estado 3 = identificado. dBOTS no manda confirmacion por chat en el
+camino de exito por defecto (solo si hay un `msgnr` configurado) -- el
+`status.db` es la prueba fehaciente, no un mensaje que se pueda simular.
+
+### Transcript resumido: CReG (registro de canal + aprobacion de oper)
+
+```
+[fundador, ya identificado, opeado en el canal por haberlo creado]
+/join #testchan2
+/msg CReG REGISTRA #testchan2 pass123 Canal de pruebas 2
+<CReG> El canal #testchan2 ha sido aceptado para el registro.
+<CReG> El canal esta a la espera de aprobacion del registro por la administracion.
+```
+`database/cregserv/canales/#testchan2` en este punto:
+```
+estado=PENDIENTE
+```
+(El umbral de apoyos de terceros esta a 0 en esta config de pruebas, asi
+que pasa directo a PENDIENTE -- en una red real con el umbral tipico
+>0, aqui hacen falta N `/msg CReG APOYA #canal <confirmacion>` de OTROS
+nicks identificados antes de llegar a PENDIENTE.)
+
+Con un segundo nick identificado que sea el `root=` configurado en
+`dbots.conf` (asciende automaticamente a nivel de administrador -- ver
+fix 3 de arriba):
+```
+/msg CReG ACEPTA #testchan2
+<CReG> El canal #testchan2 ha sido registrado.
+```
+`database/cregserv/canales/#testchan2` final:
+```
+estado=ACEPTADO
+```
+El propio bot CReG entra y sale del canal (`CReG has joined
+#testchan2` / `CReG has left #testchan2`) como parte de fijar el
+registro -- visible en vivo en la ventana del canal.
+
+### Transcript resumido: el resto de bots (comandos reales, no solo AYUDA)
+
+- **OPeR**: `STATS` devolvio estadisticas reales de la red (usuarios,
+  canales creados, nicks registrados, uptime de los bots, servidores
+  activos). `IRCOPS` devolvio la lista real de representantes
+  conectados.
+- **CeNTeR**: `CLONES ADD 10.0.0.5 5` -> "Añadido 5 clones a la ip
+  10.0.0.5."
+- **PRoXy**: `IGNORA ADD 10.0.0.6` -> "Añadida la ip 10.0.0.6 a la
+  lista."
+- **NoTiCiaS**: `ALTA` -> "Tu nick acaba de ser dado de alta en el
+  servicio de noticias."
+- **HeLP**: `UMODES` -> listado completo y real de modos de usuario de
+  la red (no via AYUDA/`m.h`, que renderiza a una ventana `@m.h` sin
+  contenido en esta copia de pruebas por faltar los ficheros de
+  `helps\` -- un tema de contenido, no de la adaptacion).
+- **MeMO**: `SEND TestLogin Hola esto es una prueba` -> "Mensaje
+  enviado a TestLogin."
+- **GLoBaL**: `GLOBAL <mensaje>` -> "[ Mensaje Global ]" + el mensaje +
+  "Mensaje global enviado correctamente. Numero de Impactos: 1" (tras
+  el fix 6 de arriba; antes de corregirlo, este mismo comando
+  desconectaba a GLoBaL).
+- **SHaDoW**: sin despachador de PRIVMSG propio en el codigo original
+  (solo aplica modos de canal) -- confirmado que conecta y opera
+  correctamente junto con los otros 10 (`operators 11` en
+  `./unrealircd status`), que es todo lo que se puede probar de el sin
+  un escenario de moderacion de canal en vivo.
+- **ChaN**: confirmado (parte 2 y de nuevo aqui) que rechaza `REGISTER`
+  con "Comando desconocido" -- el registro de canales es CReG, no
+  ChaN, tal cual esta documentado arriba.
+
+### Ruido inofensivo visto en las pruebas (no son bugs)
+
+- `DB * INS ...` seguido de `421 ... DB :Unknown command`: dBOTS manda
+  este comando crudo para sincronizar su registro con la base de datos
+  propia de UDB en el ircd. Como la v2 de `udbnick.c` decidio
+  deliberadamente NO mantener una base de datos propia (ver README,
+  "Historial de diseño"), UnrealIRCd 6 simplemente no reconoce `DB`
+  como comando y lo ignora con un error que nadie ve. Esperado, no
+  bloquea nada.
+- Cada bot opeado recibe notificaciones de servidor (`connect.LOCAL_
+  CLIENT_CONNECT`/`_DISCONNECT`) de CUALQUIER cliente que entra o sale
+  de la red, y el `.signal modulos` generico de dBOTS intenta
+  interpretarlas como si fueran una linea de comando dirigida a el
+  mismo, contestandose a si mismo "Comando desconocido". Es ruido
+  visual en la ventana de debug, no afecta al funcionamiento.
+- Enviar varios `/msg <bot> ...` seguidos muy rapido (menos de ~8
+  segundos entre destinos distintos) choca con la proteccion
+  anti-flood de UnrealIRCd (`max-concurrent-conversations`) y bloquea
+  el mensaje del lado del CLIENTE que prueba, no del bot. No es un
+  problema de dBOTS ni de la adaptacion -- es el mismo limite que
+  afectaria a un usuario real escribiendo demasiado rapido.
+
+### Que queda (honesto, no inflado)
+
+- **Verificacion de email por SMTP** sigue sin probarse (desactivada a
+  proposito, igual que en la parte 2).
+- **`AYUDA`/`HELP` en todos los bots** renderiza a traves de `m.h` en
+  una ventana `@m.h` que en esta copia de pruebas aparece vacia --
+  probablemente porque faltan los ficheros de `helps\*.help` en esta
+  copia concreta, no por la adaptacion en si (los comandos reales de
+  cada bot, probados arriba, contestan con normalidad por PRIVMSG). Si
+  tu copia de dBOTS tiene la carpeta `helps\` completa, probablemente
+  ya funcione sin mas.
+- **`APOYA` (apoyos de terceros para CReG)** no se ejercito
+  end-to-end con multiples nicks reales porque el umbral configurado en
+  esta red de pruebas es 0 -- el codigo de `cregserv.apoya` se leyo y
+  se entiende, pero no se disparo en vivo.
+- **Multi-servidor (hub+leaf)** sigue sin probarse -- mismo alcance que
+  las partes 1 y 2.
