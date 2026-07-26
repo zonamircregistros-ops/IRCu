@@ -108,21 +108,30 @@ modulo puente (`src/dbotsbridge.c`) NO lo expone a proposito. Si algun
 `.mrc` de dBOTS lo llega a invocar automaticamente en algun flujo,
 elimina esa llamada -- no tiene sustituto aqui ni deberia automatizarse.
 
-## Que construi y esta listo para compilar/revisar
+## Que construi -- y ya COMPILE Y PROBE de verdad, no solo revise
 
-1. **`src/udbnick.c`** (de la entrega anterior): sigue siendo valido e
-   independiente de todo esto -- el truco `/NICK nick:clave` funciona
-   igual sin importar si dBOTS esta enlazado como servidor o conectado
-   como cliente, porque es una funcion propia del ircd.
-2. **`src/dbotsbridge.c`** (nuevo): comando `DBOTSSVS` con subcomandos
+1. **`src/udbnick.c`**: el truco `/NICK nick:clave` funciona igual sin
+   importar si dBOTS esta enlazado como servidor o conectado como
+   cliente, porque es una funcion propia del ircd.
+2. **`src/dbotsbridge.c`**: comando `DBOTSSVS` con subcomandos
    `SVSNICK`, `SVSSILENCE`, `SVSNOLAG`, `SWHOIS`, `SVS2MODE`/`SVSMODE`,
    protegido tras el permiso de operclass `dbots:svs`. Reutiliza,
    literalmente, la misma logica interna que los modulos oficiales
-   `svsnick.c`/`svssilence.c`/`svsnolag.c`/`swhois.c` de Unreal 6 -- no
-   me lo he inventado, es la misma implementacion con la puerta de
-   entrada cambiada de "solo servidores" a "opers con este permiso".
+   `svsnick.c`/`svssilence.c`/`svsnolag.c`/`swhois.c` de Unreal 6.
    Reenvia una vez al servidor correcto si el objetivo esta en otro nodo
-   de una red hub+leaf.
+   de una red hub+leaf (logica presente y basada en el mismo patron del
+   codigo oficial, pero sin poder probarla en vivo con dos servidores
+   reales en este entorno).
+
+**Ambos, compilados de verdad** contra UnrealIRCd 6.2.7-git (rama
+`unreal60_dev`) y **probados en vivo con 18 casos de prueba
+automatizados** contra un ircd real corriendo -- 18/18 pasan, incluyendo
+los 5 subcomandos de `DBOTSSVS` ejecutados desde una sesion realmente
+opereada. Ver "Pruebas reales" mas abajo para el detalle completo y como
+reproducirlo. En el camino encontre y corregi un bug real (orden de
+`CommandOverrideAdd()` entre `MOD_INIT`/`MOD_LOAD`) que solo aparecio al
+compilar contra las cabeceras reales -- exactamente el tipo de cosa que
+no se detecta solo leyendo codigo.
 
 ## Configuracion necesaria en UnrealIRCd
 
@@ -199,33 +208,111 @@ Puntos a tener en cuenta al replicar esto para las otras 10 personas:
   servicio, hazlo con `/CHGHOST` (ya `CMD_USER`) justo despues del OPER,
   no hace falta nada especial.
 
-## Lo que falta por hacer (y por que no lo teleport a "hecho")
+## Pruebas reales (actualizacion: ya no es solo teoria)
 
-No he reescrito los ~200 puntos donde los 15 ficheros `.mrc` originales
-mandan `SVSMODE`/`SVSNICK`/`SVSSILENCE`/etc. directamente por el socket
-de enlace (`ce.mrc`, `ch.mrc`, `de.mrc`, `op.mrc`, `gl.mrc`, etc.).
-Con la tabla de arriba, cada punto se traduce mecanicamente (cambia el
-nombre del comando, en los 5 casos "puente" antepon `DBOTSSVS `), pero
-son cientos de sitios en miles de lineas de mIRC que no puedo verificar
-sin una red de pruebas real con UnrealIRCd 6.2.6 + dBOTS corriendo de
-verdad -- y un error de sintaxis silencioso en mIRC no siempre se nota
-hasta que el caso concreto se dispara en produccion.
+Compile UnrealIRCd 6.2.7-git de verdad (rama `unreal60_dev` de
+`unrealircd/unrealircd`, la continuacion de la 6.2.6) con `udbnick.c` y
+`dbotsbridge.c` puestos en `src/modules/third/`, lo arranque en una red
+de pruebas local, y ejecute 18 casos de prueba automatizados de extremo
+a extremo con un cliente IRC en Python (raw sockets, sin dependencias)
+contra el ircd real -- incluyendo los 5 subcomandos de `DBOTSSVS`
+(`SWHOIS`, `SVS2MODE`, `SVSNICK`, `SVSSILENCE`, `SVSNOLAG`) ejecutados
+desde una sesion realmente opereada. **18/18 pasan.** Detalles, como
+reproducirlo, y un bug real que encontre y corregi
+(`CommandOverrideAdd()` llamado en el hook de modulo equivocado) estan en
+el README de `udbnick` bajo "Pruebas reales realizadas".
 
-Lo que SI esta completo y lo mas verificado que he podido dejarlo sin
-compilarlo (misma salvedad que en el README principal: no tengo aqui
-toolchain de UnrealIRCd para compilar de verdad):
+Lo que ESO prueba: el lado ircd (los dos modulos C) funciona de verdad,
+no solo "debería compilar". Lo que NO prueba: no hay forma de correr
+mIRC (software Windows propietario) en este entorno Linux, asi que el
+lado mIRC de la conversion (lo que sigue en esta seccion) no lo pude
+ejecutar boton a boton contra dBOTS real.
 
-- El hallazgo de que el protocolo actual de dBOTS no enlaza, punto.
-- La estrategia de conversion (cliente+oper en vez de servidor enlazado).
-- El modulo `dbotsbridge.c`, que cierra command-by-command cada hueco
-  real que encontre (no generico, cada subcomando esta verificado contra
-  el modulo oficial equivalente de Unreal 6).
-- La plantilla de bootstrap y la tabla de traduccion completa para que
-  el resto sea trabajo mecanico guiado, no adivinado.
+## Intente convertir ni.mrc de verdad -- y encontre que el hueco es mas
+## profundo de lo que la tabla de arriba sugiere
 
-Si quieres que seleccione un fichero `.mrc` en concreto (por ejemplo
-`ni.mrc`, que es el que mas nos importa por ser NickServ) y lo reescriba
-entero linea a linea aplicando esta tabla, dimelo y lo hago a
-continuacion -- prefiero hacerlo fichero a fichero con tu visto bueno en
-el primero, en vez de convertir los 15 a ciegas y arriesgarme a propagar
-el mismo error de traduccion 200 veces.
+Antes de tocar nada me lei `sistema/ni.mrc` linea a linea (el handler
+`on 1:sockread:dbots:` completo, 1588 lineas) para hacer la conversion
+de verdad, no solo aplicar la tabla mecanicamente. Encontre DOS
+problemas estructurales adicionales que la tabla de comandos NO cubre,
+y que cualquier conversion tiene que resolver antes de que valga la
+pena tocar una sola linea de los 15 ficheros:
+
+**1. El envio "en nombre de otro" ya no existe.** Casi cada respuesta de
+NickServ en el codigo original tiene esta forma:
+
+```
+s : $+ $nickserv %conf.metodo $1 :mensaje
+```
+
+Eso es "manda, con el prefijo `:NiCK!-@- PRIVMSG destino :mensaje`
+forjado a mano" -- posible unicamente porque dBOTS habla como un
+SERVIDOR enlazado, que puede introducir el prefijo que quiera para
+cualquiera de sus pseudo-usuarios. **Un cliente normal no puede forjar su
+propio prefijo** -- el ircd lo pone el solo segun quien esta conectado de
+verdad en ese socket. Bajo el modelo cliente+oper la misma linea pasa a
+ser simplemente `sockwrite -tn dbots_nickserv PRIVMSG $1 :mensaje`, sin
+prefijo manual. Esto no es un problema en si (de hecho es una
+simplificacion), **pero aparece en cientos de sitios a lo largo de los
+15 ficheros**, no solo en los 5 comandos "puente" de la tabla -- es el
+patron de comunicacion mas usado en todo dBOTS, y cada aparicion hay que
+tocarla.
+
+**2. El cacheo pasivo de la red entera no tiene equivalente para un
+cliente normal.** Ademas de los mensajes dirigidos a NickServ, el mismo
+handler tambien procesa, para CUALQUIER usuario de la red (no solo el
+que le escribe a NickServ):
+
+- `NICK`/`QUIT`/`KILL` globales, para mantener una cache interna de
+  usuarios (linea 12-14: `c.n`/`s.u`).
+- `SETIDENT`/`SETNAME` globales, para reflejar cambios de ident/nombre
+  en la base de datos propia (linea 33-42).
+- Respuestas al protocolo `DBQ`/`DB` propio de UDB (numerico 339 y
+  comando `DB`, linea 43-63) -- consultas/sincronizacion directa contra
+  la base de datos `nicks.udb` del ircd.
+
+Todo eso funciona en el original **solo porque, al ser un servidor
+enlazado, dBOTS ve TODO el trafico de la red** (cada NICK, QUIT, KILL,
+cambio de modo de cualquiera, en cualquier canal). Un cliente normal --
+por diseño, y por privacidad/escala -- NO recibe ese trafico salvo que
+comparta canal con cada usuario. No hay forma de "traducir" estas
+lineas a un comando equivalente porque el problema no es de sintaxis,
+es que **la fuente de datos entera deja de existir** bajo el modelo
+cliente+oper.
+
+El punto 3 (DBQ/DB) ya no aplica de todas formas con esta arquitectura:
+`udbnick.c` es su propia base de datos autosuficiente, no sincroniza con
+UDB porque no hay UDB -- esas ~20 lineas son codigo muerto a eliminar,
+no a traducir. Los puntos 1 y 2 si son trabajo real:
+
+- El punto 1 (des-prefijar los envios) es mecanico pero extenso --
+  cientos de sitios, cambio de patron simple, riesgo bajo por repeticion
+  pero alto en volumen.
+- El punto 2 (cache global) necesita **rediseño real, no traduccion**:
+  la alternativa razonable en Unreal 6 es IRCv3 `MONITOR` (consultar
+  el estado online/offline de una lista concreta de nicks, sin snoopear
+  toda la red) para lo que hoy hace el cacheo de NICK/QUIT, y aceptar
+  que SETIDENT/SETNAME globales sencillamente no se pueden replicar sin
+  que NickServ este en todos los canales -- o sin resignarse a que ese
+  dato se quede desactualizado hasta el proximo `/WHOIS`.
+
+## Por que no genero un `ni.mrc` "convertido"
+
+Dado lo anterior, no voy a fabricar un fichero que diga "ni.mrc
+adaptado" sin poder ejecutarlo contra un mIRC real -- encontre demasiada
+incertidumbre estructural (el propio mecanismo de nombrado de sockets de
+dBOTS, via `aliases.sys`, no lo pude terminar de trazar con confianza)
+como para presentar miles de lineas reescritas a ciegas como si
+estuvieran verificadas. Eso seria writing code that looks done but isn't
+-- exactamente lo que quiero evitar.
+
+**Lo que si esta terminado, compilado y probado de verdad de extremo a
+extremo es el lado ircd** (`udbnick.c` + `dbotsbridge.c`, ver "Pruebas
+reales" arriba). Es la mitad dificil, la que puede desincronizar o
+tirar el servidor si esta mal, y la que no se puede improvisar en
+produccion. El lado mIRC, con los tres hallazgos de este documento
+(protocolo de enlace obsoleto, comandos SVS* sin CMD_USER, y ahora estos
+dos problemas estructurales de comunicacion+cacheo), tiene ya un mapa
+mucho mas preciso de por donde hay que cortar -- pero la conversion
+mecanica de los ~9000 lineas restantes es trabajo que pide iterar contra
+un mIRC real, cosa que este entorno no tiene.

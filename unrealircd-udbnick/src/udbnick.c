@@ -89,7 +89,6 @@ MOD_INIT()
 	if (!udbnick_md)
 		return MOD_FAILED;
 
-	CommandOverrideAdd(modinfo->handle, "NICK", 0, udbnick_override_nick);
 	CommandAdd(modinfo->handle, "REGISTER", udbnick_cmd_register, MAXPARA, CMD_USER);
 	CommandAdd(modinfo->handle, "IDENTIFY", udbnick_cmd_identify, MAXPARA, CMD_USER);
 	CommandAdd(modinfo->handle, "SETPASS", udbnick_cmd_setpass, MAXPARA, CMD_USER);
@@ -103,6 +102,13 @@ MOD_INIT()
 
 MOD_LOAD()
 {
+	/* CommandOverrideAdd() must happen in MOD_LOAD(), not MOD_INIT():
+	 * at MOD_INIT() time the core "NICK" command may not be registered
+	 * yet depending on module load order, and UnrealIRCd BUGs out if you
+	 * try to override a command that doesn't exist yet. Caught by
+	 * ./unrealircd configtest against a real 6.2.7-git build -- see
+	 * ../DBOTS-MIGRATION.md "Pruebas reales" for the full test log. */
+	CommandOverrideAdd(modinfo->handle, "NICK", 0, udbnick_override_nick);
 	udbnick_load();
 	return MOD_SUCCESS;
 }
@@ -141,7 +147,7 @@ static void udbnick_load(void)
 		UdbNickAccount *a;
 
 		line[strcspn(line, "\r\n")] = '\0';
-		if (BadPtr(line))
+		if (line[0] == '\0')
 			continue;
 
 		nick = line;

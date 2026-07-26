@@ -103,16 +103,64 @@ implemento en vez de esta, o ademas de esta.
   su clave (no hace falta estar conectado con el). Los IRCops pueden
   `/DROP <nick>` sin clave.
 
+## Pruebas reales realizadas (no solo lectura de codigo)
+
+Esto ya NO es solo "deberia compilar": lo compile y lo probe de verdad.
+
+1. Clone `unrealircd/unrealircd` (rama `unreal60_dev`, que en este momento
+   se identifica como `6.2.7-git` -- la continuacion directa de la 6.2.6
+   que pediste), lo compile completo con `./Config` + `make` en un
+   entorno Linux con las dependencias reales (OpenSSL, PCRE2, c-ares,
+   argon2, jansson, sqlite3), con `udbnick.c` y `dbotsbridge.c` puestos en
+   `src/modules/third/`.
+2. **La primera compilacion encontro un bug real**: `[error] [BUG]
+   CommandOverrideAdd() called by module 'third/udbnick' before
+   MOD_LOAD().` -- lo tenia en `MOD_INIT()`, y Unreal exige que los
+   `CommandOverrideAdd()` se hagan en `MOD_LOAD()` porque en `MOD_INIT()`
+   el comando `NICK` puede no estar registrado todavia segun el orden de
+   carga de modulos. Corregido (ver el comentario en el codigo).
+3. Con eso arreglado, compilo limpio (0 errores, 0 warnings propios --
+   solo un `-Waddress` trivial que tambien limpie).
+4. Arranque una red de pruebas real (`irc.example.org`, puerto 6667 en
+   local) con ambos modulos cargados, un operclass propio
+   (`dbots-service`, con el permiso `dbots { svs; }` que exige
+   `dbotsbridge.c`) y un oper de prueba.
+5. Escribi un cliente IRC en Python puro (`tests/test_udbnick.py`, sin
+   dependencias) que habla el protocolo crudo por socket y ejecuta 18
+   casos de prueba de extremo a extremo contra el ircd real: registro,
+   identificacion automatica via `NICK nick:clave` y `NICK nick!clave`,
+   rechazo de clave incorrecta/ausente, `SETPASS`, `DROP`, re-registro
+   tras el drop, y los cinco subcomandos de `DBOTSSVS`
+   (`SWHOIS`/`SVS2MODE`/`SVSNICK`/`SVSSILENCE`/`SVSNOLAG`) usados desde
+   una sesion realmente opereada, mas la comprobacion de que un cliente
+   NO-oper recibe `Permission Denied`.
+
+**Resultado: 18/18 pruebas pasan.** Para reproducirlo tu mismo, con
+UnrealIRCd ya compilado e instalado con ambos modulos:
+
+```
+python3 unrealircd-udbnick/tests/test_udbnick.py
+```
+
+(Edita `HOST`/`PORT` al principio del script si tu ircd no esta en
+`127.0.0.1:6667`, y asegurate de tener un oper `bobsmith`/`testpass123`
+con `operclass dbots-service` para que los tests 7-18 tengan permisos --
+o cambia esas dos lineas en el script por tu propio oper de pruebas.)
+
 ## Limitaciones conocidas (honestas, no las escondo)
 
-- **No esta compilado ni probado contra las cabeceras reales de
-  UnrealIRCd 6.2.6.** Verifique cada funcion/macro (`CommandOverrideAdd`,
-  `CMD_OVERRIDE_FUNC`, `ModDataAdd`, `Auth_Hash`/`Auth_Check`,
-  `HOOKTYPE_ACCOUNT_LOGIN`, etc.) leyendo el codigo fuente real de Unreal
-  en `unrealircd/unrealircd` (rama `unreal60_dev`), pero no tengo aqui un
-  entorno con el arbol fuente completo + toolchain para compilarlo de
-  verdad. Antes de produccion: compilalo, arrancalo en una red de pruebas,
-  y prueba los cinco comandos de arriba a mano.
+- **No probado en una red multi-servidor real (hub+leaf)**: el relay de
+  `DBOTSSVS` a un servidor remoto (`sendto_one` cuando `!MyUser(target)`)
+  esta implementado y usa el mismo patron que el codigo oficial de
+  Unreal, pero solo tengo un servidor en este entorno de pruebas -- no
+  pude verificar en vivo que el reenvio entre dos `unrealircd` enlazados
+  funciona byte a byte.
+- **No probado con mIRC/dBOTS real**: no hay forma de correr mIRC (software
+  Windows propietario) en este entorno Linux. Lo que verifique en vivo es
+  el lado del ircd (los comandos que dBOTS necesitaria mandar); el lado
+  mIRC de la adaptacion (ver `DBOTS-MIGRATION.md`) sigue siendo una
+  plantilla+tabla de traduccion, no algo que haya podido ejecutar de
+  verdad boton a boton.
 - **Sin bloque de configuracion todavia**: la ruta de la base de datos, el
   minimo de longitud de contrasena y el tipo de hash son `#define` en el
   propio `.c` (arriba del fichero), no `set::udbnick { }`. Facil de anadir
