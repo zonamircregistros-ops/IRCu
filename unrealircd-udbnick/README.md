@@ -1,3 +1,12 @@
+> **Actualizacion**: ademas del modulo `udbnick` de abajo, este directorio
+> ahora incluye `src/dbotsbridge.c` y, sobre todo,
+> **[`DBOTS-MIGRATION.md`](DBOTS-MIGRATION.md)** -- la auditoria completa
+> de por que dBOTS, tal cual esta en GitHub, NO puede enlazar a
+> UnrealIRCd 6.2.6 (usa un handshake de servidor sin SID, obsoleto desde
+> hace años), y el plan concreto para adaptarlo (conectarlo como cliente
+> oper en vez de como servidor enlazado). Empieza por ahi si tu objetivo
+> es dBOTS funcionando, no solo el atajo `/NICK nick:clave`.
+
 # udbnick — `/NICK usuario:contrasena` para UnrealIRCd 6.2.6
 
 Modulo de terceros para UnrealIRCd 6.x que reproduce, sobre la API moderna,

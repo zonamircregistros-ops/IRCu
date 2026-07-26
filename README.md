@@ -285,6 +285,10 @@ siguiendo su propia documentacion, usando el mismo nombre de servidor
 
 - **`unrealircd-udbnick/`**: si en vez de (o ademas de) InspIRCd vais a
   correr UnrealIRCd 6.2.6 para dar soporte a bots dBOTS estilo
-  IRC-Hispano (`/NICK usuario:contrasena`), ahi hay un modulo de terceros
-  para Unreal 6 que reproduce esa funcion de UDB. Ver su propio README
-  para alcance, instalacion y limitaciones conocidas.
+  IRC-Hispano, ahi hay dos modulos de terceros para Unreal 6
+  (`udbnick`: `/NICK usuario:contrasena`; `dbotsbridge`: comandos de
+  servicios que dBOTS necesita y Unreal 6 solo permite a servidores
+  enlazados) y una auditoria completa
+  (`DBOTS-MIGRATION.md`) de por que dBOTS no puede enlazar tal cual a un
+  Unreal moderno y como adaptarlo. Ver los READMEs de ese directorio para
+  alcance, instalacion y limitaciones conocidas.
