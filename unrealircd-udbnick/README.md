@@ -142,6 +142,51 @@ UnrealIRCd ya compilado e instalado con ambos modulos:
 python3 unrealircd-udbnick/tests/test_udbnick.py
 ```
 
+## Ademas: mIRC REAL, no solo un cliente Python simulado
+
+Instale Wine + Xvfb (framebuffer virtual) + openbox (gestor de ventanas
+minimo) en este entorno Linux, descargue el `mirc.exe` real que trae el
+propio repositorio de dBOTS (mIRC v6.2, el mismo binario que mencionan
+`dbots.conf`), y lo arranque contra mi UnrealIRCd de pruebas -- con
+capturas de pantalla para verificarlo visualmente en cada paso. mIRC
+autentico, corriendo bajo Wine, hizo con exito:
+
+- `/server 127.0.0.1 6667` -- conexion normal de cliente.
+- `/oper bobsmith testpass123` -- gano privilegios de IRCop de verdad
+  (`+iwxost`, autounido a `#opers`).
+- `/quote DBOTSSVS SWHOIS ...` -- el `/WHOIS` posterior mostro la linea
+  puesta por el bridge, confirmado en pantalla.
+- `/register clave123 ...` seguido de una SEGUNDA conexion mIRC
+  intentando el mismo nick: rechazada con el mensaje exacto
+  ("El nick BridgeTester esta registrado. Usa /NICK..."), y
+  `/nick BridgeTester:clave123` identificando correctamente.
+
+Esto **encontro dos bugs reales mas** que ni la compilacion ni las
+pruebas en Python habian detectado:
+
+- **Bug de persistencia (el importante)**: UnrealIRCd cambia su
+  directorio de trabajo a `tmp/` una vez arrancado del todo (convencion
+  de daemonizacion), asi que la ruta relativa `"data/udbnick.db"` que
+  usaba resolvia a `tmp/data/udbnick.db` (que no existe) y el guardado
+  fallaba en silencio en cuanto pasaba tiempo desde el arranque --
+  exactamente el tipo de fallo que solo aparece con uso real, no en un
+  test que arranca y prueba todo en segundos. Corregido usando
+  `PERMDATADIR` (la macro de ruta absoluta que ya expone UnrealIRCd para
+  esto exactamente), no una ruta relativa.
+- Un mensaje de log que siempre decia "via NICK nick:pass" aunque el
+  login viniera de `/REGISTER` o `/IDENTIFY` -- cosmetico, tambien
+  corregido.
+
+Ambos arreglos ya estan en el codigo y reverificados: recompile,
+reinstale, y las 18 pruebas de Python siguen en verde, mas confirmacion
+en el log de que el guardado ya no falla.
+
+**Esto tambien significa que, si recupero conectividad/entorno
+suficiente, SI puedo seguir probando la conversion de los ficheros
+`.mrc` con mIRC real** en vez de solo teoria -- lo cual cambia la
+conversacion sobre cuanto de la conversion completa es razonable
+intentar en las siguientes iteraciones.
+
 (Edita `HOST`/`PORT` al principio del script si tu ircd no esta en
 `127.0.0.1:6667`, y asegurate de tener un oper `bobsmith`/`testpass123`
 con `operclass dbots-service` para que los tests 7-18 tengan permisos --

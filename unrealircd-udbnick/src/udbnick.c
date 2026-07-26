@@ -40,7 +40,13 @@ ModuleHeader MOD_HEADER = {
  * v1 has no config block parser yet: the database path and hash type are
  * compile-time constants. See README.md "Limitaciones conocidas".
  */
-#define UDBNICK_DBFILE   "data/udbnick.db"
+/* Must be an absolute path via PERMDATADIR, NOT a relative "data/..."
+ * path: UnrealIRCd chdir()s to its TMPDIR (e.g. .../tmp) once fully
+ * started (daemonizing convention), so a relative path resolves under
+ * tmp/ instead of the real data directory and silently fails to save.
+ * Found by testing against a real running unrealircd, not from reading
+ * source -- see ../DBOTS-MIGRATION.md "Pruebas reales". */
+#define UDBNICK_DBFILE   PERMDATADIR "/udbnick.db"
 #define UDBNICK_MINPASS  6
 #define UDBNICK_HASHTYPE AUTHTYPE_ARGON2
 
@@ -70,7 +76,7 @@ static void udbnick_save(void);
 static UdbNickAccount *udbnick_find(const char *nick);
 static void udbnick_apply_pending_login(Client *client);
 static int udbnick_check_password(Client *client, UdbNickAccount *acct, const char *pass);
-static void udbnick_login(Client *client, const char *accountnick);
+static void udbnick_login(Client *client, const char *accountnick, const char *reason);
 
 MOD_TEST()
 {
@@ -225,14 +231,15 @@ static int udbnick_check_password(Client *client, UdbNickAccount *acct, const ch
 /* Mark 'client' as logged into services account 'accountnick', the same
  * way sasl.c does it, so cloaking/WHOIS/extbans react as if SASL had
  * authenticated them. */
-static void udbnick_login(Client *client, const char *accountnick)
+static void udbnick_login(Client *client, const char *accountnick, const char *reason)
 {
 	strlcpy(client->user->account, accountnick, sizeof(client->user->account));
 	RunHook(HOOKTYPE_ACCOUNT_LOGIN, client, NULL);
 	sendnotice(client, "*** Identificado como \002%s\002.", accountnick);
 	unreal_log(ULOG_INFO, "udbnick", "UDBNICK_LOGIN", client,
-	           "$client.details identified as account $account via NICK nick:pass",
-	           log_data_string("account", accountnick));
+	           "$client.details identified as account $account ($reason)",
+	           log_data_string("account", accountnick),
+	           log_data_string("reason", reason));
 }
 
 /* client->user does not exist yet for a brand new, still-unregistered
@@ -247,7 +254,7 @@ static void udbnick_apply_pending_login(Client *client)
 	if (!m->str)
 		return;
 	if (client->user && !strcasecmp(client->name, m->str))
-		udbnick_login(client, m->str);
+		udbnick_login(client, m->str, "via NICK nick:pass");
 	safe_free(m->str);
 }
 
@@ -388,7 +395,7 @@ CMD_FUNC(udbnick_cmd_register)
 	udbnick_accounts = a;
 	udbnick_save();
 
-	udbnick_login(client, client->name);
+	udbnick_login(client, client->name, "via REGISTER");
 	sendnotice(client, "*** Nick \002%s\002 registrado. A partir de ahora usa "
 	           "/NICK %s:tu_contrasena para identificarte al conectar.",
 	           client->name, client->name);
@@ -428,7 +435,7 @@ CMD_FUNC(udbnick_cmd_identify)
 		           log_data_string("account", client->name));
 		return;
 	}
-	udbnick_login(client, client->name);
+	udbnick_login(client, client->name, "via IDENTIFY");
 }
 
 /* ---- /SETPASS <oldpassword> <newpassword> ------------------------------- */
