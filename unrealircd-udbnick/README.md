@@ -163,6 +163,22 @@ bajo esta arquitectura). **Detalle completo, con las respuestas
 textuales de dBOTS para cada bot, en
 [`DBOTS-MIGRATION.md`](DBOTS-MIGRATION.md) "Pruebas reales (parte 3)".**
 
+**Parte 4 -- el modo `+r` (nick identificado / canal registrado)
+tambien funciona ahora.** Se detecto que ningun nick ni canal quedaba
+marcado con `+r` tras identificarse/registrarse -- dBOTS nunca lo pedia
+explicitamente (bajo UDB lo ponia el propio ircd) y, ademas, tanto el
+`+r` de usuario como el de canal estan definidos en UnrealIRCd 6 como
+exclusivos de servidor/U-Line (ni siquiera `SAMODE`, un comando de
+serie, puede ponerlos). Se extendio `src/dbotsbridge.c` para que su
+comando `DBOTSSVS SVS2MODE` (que ya forzaba modos de usuario) tambien
+acepte un canal como destino, y se añadieron dos lineas en el propio
+`ni.mrc`/`cr.mrc` (en los unicos dos puntos que de verdad saben que el
+login o el registro tuvo exito) para pedirlo. Probado en vivo:
+`/whois` muestra "is identified for this nick" tras el login, y el
+canal recien aceptado por CReG muestra modo `+r` en su titulo. Detalle
+completo en [`DBOTS-MIGRATION.md`](DBOTS-MIGRATION.md) "Pruebas reales
+(parte 4)".
+
 (Para reproducir `tests/test_udbnick.py` tal cual: `python3
 unrealircd-udbnick/tests/test_udbnick.py`, editando `HOST`/`PORT` si tu
 ircd no esta en `127.0.0.1:6667` -- pero recuerda la nota de arriba
@@ -180,11 +196,16 @@ sobre que subtests siguen aplicando a la v2.)
   tu servidor Unreal 6 (el mismo `set::name` de `unrealircd.conf`), no
   un valor heredado de una instalacion antigua bajo UDB.
 - Aplica los parches de `dbots-adapted/` (`sistema-alias-overrides.mrc`,
-  `sockets-bootstrap.mrc`, `ni-fixes.mrc`, `cr-fixes.mrc`) -- sin ellos,
-  el login por contraseña y el registro de canales no funcionan aunque
+  `sockets-bootstrap.mrc`, `ni-fixes.mrc`, `cr-fixes.mrc`,
+  `plus-r-modes.mrc`) -- sin ellos, el login por contraseña y el
+  registro de canales no funcionan (y sin `plus-r-modes.mrc`
+  especificamente, funcionan pero nadie queda marcado con `+r`) aunque
   todo lo demas este bien configurado. Ver
   [`DBOTS-MIGRATION.md`](DBOTS-MIGRATION.md) "Pruebas reales (parte 3)"
-  para el porque de cada uno.
+  y "(parte 4)" para el porque de cada uno.
+- Compila y carga `src/dbotsbridge.c` actualizado (necesario para que
+  `plus-r-modes.mrc` funcione -- añade soporte de canal a su comando
+  `DBOTSSVS SVS2MODE`).
 
 ## Limitaciones conocidas (honestas, no las escondo)
 

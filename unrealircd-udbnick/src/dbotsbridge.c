@@ -22,8 +22,21 @@
  *   b) this module's DBOTSSVS command, for the handful that genuinely
  *      have no CMD_USER form: SVSNICK, SVSSILENCE, SVSNOLAG, SWHOIS, and
  *      SVS2MODE/SVSMODE (forcing arbitrary USER modes, e.g. +B/+k/+r, on
- *      someone else -- SAMODE only covers CHANNEL modes, it is not a
- *      substitute for this one).
+ *      someone else -- SAMODE only covers CHANNEL modes, and even then
+ *      not this kind: see below).
+ *
+ * SVS2MODE/SVSMODE also accepts a CHANNEL as the target (parv[2]
+ * starting with '#'), to force paramless channel modes -- concretely,
+ * +r ("registered channel"), which CReG needs to set after accepting a
+ * channel registration and which NickServ's own SVS2MODE call sets on
+ * the user side after a successful IDENTIFY. This is NOT the same as
+ * SAMODE: SAMODE goes through the normal do_mode()/is_ok() machinery,
+ * and +r's own is_ok() handler (chanmodes/isregistered.c) returns
+ * EX_ALWAYS_DENY for anyone that isn't IsServer()/IsULine() -- a check
+ * do_mode() honors unconditionally, SAMODE included. This module's
+ * channel path flips the mode bit directly (same trick dbots_svs2mode()
+ * already uses for user modes) and broadcasts it itself, bypassing that
+ * check the same deliberate way, behind the same "dbots:svs" permission.
  *
  * DBOTSSVS is intentionally its own single command (not a re-opening of
  * SVSNICK/SVSSILENCE/etc. to CMD_USER) so it can be gated behind one
@@ -53,6 +66,7 @@ static void dbots_svssilence(Client *client, Client *target, const char *list);
 static void dbots_svsnolag(Client *client, Client *target, const char *plusminus);
 static void dbots_swhois(Client *client, Client *target, int parc, const char *parv[]);
 static void dbots_svs2mode(Client *client, Client *target, const char *modestr);
+static void dbots_svs2mode_channel(Client *client, Channel *channel, const char *modestr);
 
 ModuleHeader MOD_HEADER = {
 	"third/dbotsbridge",
@@ -105,6 +119,21 @@ CMD_FUNC(cmd_dbotssvs)
 	{
 		if (MyUser(client))
 			sendnumeric(client, ERR_NOPRIVILEGES);
+		return;
+	}
+
+	/* Channel target: only SVS2MODE/SVSMODE make sense here (e.g. +r,
+	 * "registered channel" -- see dbots_svs2mode_channel()). Every other
+	 * subcommand (SVSNICK, SVSSILENCE, ...) is inherently user-only, so
+	 * a channel-shaped parv[2] for those is simply not a valid call. */
+	if (parv[2][0] == '#')
+	{
+		if ((!strcasecmp(subcmd, "SVS2MODE") || !strcasecmp(subcmd, "SVSMODE")) && parc >= 4)
+		{
+			Channel *channel = find_channel(parv[2]);
+			if (channel)
+				dbots_svs2mode_channel(client, channel, parv[3]);
+		}
 		return;
 	}
 
@@ -313,4 +342,84 @@ static void dbots_svs2mode(Client *client, Client *target, const char *modestr)
 	           "$client.details forced usermodes $modestr on $target.details (via dBOTS bridge)",
 	           log_data_string("modestr", modestr),
 	           log_data_client("target", target));
+}
+
+/* ---- SVS2MODE / SVSMODE on a CHANNEL target: force paramless channel
+ * modes, e.g. +r ("registered channel") -- needed because dBOTS' own
+ * CReG persona has no other way to set it. UnrealIRCd 6 gates +r (like
+ * +z and a few others) behind IsServer()/IsULine() in its own is_ok()
+ * handler (chanmodes/isregistered.c) -- the exact same restriction
+ * dbots_svs2mode() above works around for USER modes. There is no
+ * equivalent CMD_USER path for channel modes: stock SVSMODE/SVS2MODE's
+ * own channel_svsmode() (src/modules/svsmode.c) only ever touches
+ * ban-type (b/e/I) and MEMBER-type (o/v/...) modes -- paramless
+ * CMODE_NORMAL modes like +r are simply not something it handles at
+ * all, for channels or otherwise.
+ *
+ * Deliberately restricted to CMODE_NORMAL, paramless modes only (found
+ * via the same find_channel_mode_handler() stock svsmode.c itself uses
+ * for member-mode lookups) -- member modes (+o/+v) and parameter modes
+ * (+l/+k/...) need very different handling (a target user, or a
+ * parameter) that this bridge has no reason to grow, since dBOTS never
+ * needs more than +r/-r through this specific path. Anything else in
+ * modestr is silently skipped rather than partially applied. */
+static void dbots_svs2mode_channel(Client *client, Channel *channel, const char *modestr)
+{
+	const char *m;
+	int what = MODE_ADD;
+	Cmode_t addbits = 0, delbits = 0;
+	Cmode_t old = channel->mode.mode;
+	char modebuf[64];
+	char *mb = modebuf;
+	MessageTag *mtags = NULL;
+
+	for (m = modestr; *m && (size_t)(mb - modebuf) < sizeof(modebuf) - 2; m++)
+	{
+		Cmode *cm;
+
+		if (*m == '+')
+		{
+			what = MODE_ADD;
+			continue;
+		}
+		if (*m == '-')
+		{
+			what = MODE_DEL;
+			continue;
+		}
+
+		cm = find_channel_mode_handler(*m);
+		if (!cm || (cm->type != CMODE_NORMAL))
+			continue;
+
+		if (what == MODE_ADD)
+			addbits |= cm->mode;
+		else
+			delbits |= cm->mode;
+
+		*mb++ = (what == MODE_ADD) ? '+' : '-';
+		*mb++ = *m;
+	}
+	*mb = '\0';
+
+	if (!*modebuf)
+		return;
+
+	channel->mode.mode |= addbits;
+	channel->mode.mode &= ~delbits;
+
+	if (channel->mode.mode == old)
+		return;
+
+	new_message(client, NULL, &mtags);
+	sendto_channel(channel, client, client, 0, 0, SEND_LOCAL, mtags,
+	               ":%s MODE %s %s", client->name, channel->name, modebuf);
+	sendto_server(NULL, 0, 0, mtags, ":%s MODE %s %s%s", client->id, channel->name, modebuf,
+	              IsServer(client) ? " 0" : "");
+	free_message_tags(mtags);
+
+	unreal_log(ULOG_INFO, "dbotsbridge", "DBOTS_SVS2MODE_CHANNEL", client,
+	           "$client.details forced channel modes $modestr on $channel.name (via dBOTS bridge)",
+	           log_data_string("modestr", modebuf),
+	           log_data_string("channel", channel->name));
 }

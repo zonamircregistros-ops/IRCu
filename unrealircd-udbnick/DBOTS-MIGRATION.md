@@ -714,3 +714,103 @@ registro -- visible en vivo en la ventana del canal.
   se entiende, pero no se disparo en vivo.
 - **Multi-servidor (hub+leaf)** sigue sin probarse -- mismo alcance que
   las partes 1 y 2.
+
+## Pruebas reales (parte 4) -- +r en nicks identificados y canales registrados
+
+Tras la parte 3, se detectó (por observación directa de las pruebas, no
+por auditoría de código) que ningún nick identificado ni ningún canal
+registrado quedaba marcado con el modo `+r`. Investigación completa del
+porqué, y arreglo probado en vivo, en esta ronda.
+
+### Por qué pasaba
+
+Bajo la arquitectura original (dBOTS enlazado como servidor bajo UDB),
+era **el propio ircd (UDB)** el que ponía `+r` automáticamente al
+identificar/registrar, porque UDB mantenía su propia base de cuentas
+integrada en el núcleo del ircd. Confirmado leyendo `ni.mrc`/`cr.mrc`/
+`ch.mrc` reales sin modificar: ninguno contiene una sola llamada a
+`MODE`, `SVSMODE` o `SVS2MODE` para `+r` -- el único texto "+r" en toda
+la suite son mensajes de bienvenida configurables que solo lo
+*mencionan*.
+
+Tampoco es tan simple como añadir un `MODE nick +r` desde dBOTS: se
+confirmó leyendo el codigo fuente de UnrealIRCd 6 que tanto el modo de
+usuario `+r` (`src/api-usermode.c`,
+`UmodeAdd(NULL, 'r', UMODE_GLOBAL, 0, umode_allow_none, &UMODE_REGNICK)`)
+como el modo de canal `+r` (`src/modules/chanmodes/isregistered.c`)
+estan definidos como exclusivos de servidor/U-Line. Se probó en vivo
+que ni siquiera `SAMODE` (comando de oper de serie en Unreal 6) puede
+ponerlo: `do_mode()` respeta `EX_ALWAYS_DENY` de forma incondicional,
+SAMODE incluido.
+
+### El arreglo
+
+Dos partes:
+
+1. **`src/dbotsbridge.c`** (este repo): se extendió el comando
+   `DBOTSSVS SVS2MODE`/`SVSMODE` que ya existía (y que ya se saltaba
+   esta misma restricción para modos de USUARIO) para que tambien
+   acepte un CANAL como destino, para modos de canal sin parámetro
+   como `+r`. Misma proteccion por el permiso de operclass
+   `dbots:svs` que todo lo demas de `DBOTSSVS`. Tecnicamente: busca el
+   bit del modo via `find_channel_mode_handler()` (la misma funcion
+   publica que usa el propio `SVSMODE` de serie de Unreal para sus
+   modos de miembro) y lo aplica directamente sobre
+   `channel->mode.mode`, difundiendo el `MODE` el mismo como hace
+   `channel_svsmode()` de serie.
+
+2. **Dos lineas nuevas en el propio dBOTS**, en los dos unicos puntos
+   que de verdad saben que el identify/registro tuvo exito (en
+   ningun otro sitio se sabe eso -- por eso `udbnick.c` nunca podria
+   poner `+r` de forma segura por su cuenta: por diseño, el shim no
+   ve si el `IDENTIFY` que reenvio tuvo exito o no):
+   - `ni.mrc`, alias `i.n` (se llama en cada IDENTIFY exitoso): manda
+     `DBOTSSVS SVS2MODE <nick> +r` desde NickServ.
+   - `cr.mrc`, alias `cregserv.acepta` (las dos ramas que marcan un
+     canal ACEPTADO, la normal y la de `ACEPTA ... FORCE`): manda
+     `DBOTSSVS SVS2MODE <canal> +r` desde CReG.
+
+   Detalle completo linea por linea en
+   `dbots-adapted/plus-r-modes.mrc`.
+
+### Transcript resumido
+
+Login (mismo flujo de la parte 3, ahora con el fix aplicado):
+```
+-> Server: NICK TestLogin:bE75jWq2qGVK
+[udbnick.c manda automaticamente:]
+PRIVMSG NiCK@irc.example.org :IDENTIFY bE75jWq2qGVK
+* TestLogin sets mode: +r
+```
+`/whois TestLogin`:
+```
+TestLogin is Mew@Clk-E7BB8D1A * http://www.todavia.no
+TestLogin is using modes +irwx
+TestLogin is identified for this nick
+```
+("is identified for this nick" es la linea nativa de WHOIS de
+UnrealIRCd para `+r`, no texto de dBOTS.)
+
+Registro de canal (mismo flujo de la parte 3, ahora con el fix
+aplicado):
+```
+/msg CReG REGISTRA #testchan3 pass456 Canal de pruebas de modos
+[... aceptado, PENDIENTE ...]
+/msg CReG ACEPTA #testchan3
+* CReG has joined #testchan3
+* CReG has left #testchan3
+* CReG sets mode: +r
+```
+Titulo de la ventana del canal tras esto: `#testchan3 [1] [+nrt]`.
+
+### Que queda (honesto, no inflado)
+
+- **No se limpia `+r` al hacer DROP** de un nick o de un canal que
+  siga conectado/existente en ese momento exacto. Riesgo bajo en la
+  practica: nada mas en dBOTS confia en `+r` como mecanismo de control
+  de acceso, asi que un `+r` que sobrevive tras un DROP queda como
+  metadato obsoleto, no como agujero de seguridad. El caso comun (el
+  usuario cambia de nick o reconecta despues) ya lo cubre el propio
+  nucleo de UnrealIRCd (`src/modules/nick.c` limpia `+r` de usuario en
+  cualquier cambio de nick, automaticamente, sin intervencion de
+  dBOTS).
