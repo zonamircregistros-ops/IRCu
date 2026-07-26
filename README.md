@@ -280,3 +280,11 @@ siguiendo su propia documentacion, usando el mismo nombre de servidor
   - https://github.com/inspircd/inspircd/blob/insp4/docs/conf/opers.example.conf
   - https://github.com/inspircd/inspircd/blob/insp4/docs/conf/links.example.conf
   - https://github.com/inspircd/inspircd/blob/insp4/docs/conf/filter.example.conf
+
+## Otros componentes de este repo
+
+- **`unrealircd-udbnick/`**: si en vez de (o ademas de) InspIRCd vais a
+  correr UnrealIRCd 6.2.6 para dar soporte a bots dBOTS estilo
+  IRC-Hispano (`/NICK usuario:contrasena`), ahi hay un modulo de terceros
+  para Unreal 6 que reproduce esa funcion de UDB. Ver su propio README
+  para alcance, instalacion y limitaciones conocidas.
