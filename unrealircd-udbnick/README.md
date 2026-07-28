@@ -179,6 +179,24 @@ canal recien aceptado por CReG muestra modo `+r` en su titulo. Detalle
 completo en [`DBOTS-MIGRATION.md`](DBOTS-MIGRATION.md) "Pruebas reales
 (parte 4)".
 
+**Parte 5 -- ipvirtual (VHOST) y los comandos de OPeR (KILL, BLOCK,
+GLINE, KILLCLONES, SETTIME, APODERA, LIMPIA).** VHOST actualizaba la
+base de datos de dBOTS pero nunca el host visible -- corregido
+añadiendo `CHGHOST` (ya de serie en Unreal 6, sin bridge necesario).
+BLOCK/GLINE/KILLCLONES no funcionaban por dos bugs reales: UnrealIRCd
+6 rechaza sin log el `TKL` crudo que un cliente manda (arreglado
+extendiendo `DBOTSSVS` con `GLINE ADD/DEL` en `dbotsbridge.c`), y el
+host que dBOTS guardaba para banear era el cloak, no el host real
+(arreglado con una consulta `WHOIS` que lee la linea oper-only de
+UnrealIRCd con el host de verdad). KILL ya funcionaba sin cambios.
+SETTIME **no tiene arreglo posible**: UnrealIRCd 6 eliminó esa
+capacidad del propio ircd. APODERA y LIMPIA no hacen nada, pero es un
+bug preexistente del propio dBOTS (una variable que se asigna pero
+nunca se lee en ningún archivo) -- no algo que rompió esta migración,
+y fuera de alcance arreglarlo. Detalle completo, con las respuestas
+reales de UnrealIRCd para cada caso, en
+[`DBOTS-MIGRATION.md`](DBOTS-MIGRATION.md) "Pruebas reales (parte 5)".
+
 (Para reproducir `tests/test_udbnick.py` tal cual: `python3
 unrealircd-udbnick/tests/test_udbnick.py`, editando `HOST`/`PORT` si tu
 ircd no esta en `127.0.0.1:6667` -- pero recuerda la nota de arriba
@@ -197,14 +215,17 @@ sobre que subtests siguen aplicando a la v2.)
   un valor heredado de una instalacion antigua bajo UDB.
 - Aplica los parches de `dbots-adapted/` (`sistema-alias-overrides.mrc`,
   `sockets-bootstrap.mrc`, `ni-fixes.mrc`, `cr-fixes.mrc`,
-  `plus-r-modes.mrc`) -- sin ellos, el login por contraseña y el
-  registro de canales no funcionan (y sin `plus-r-modes.mrc`
-  especificamente, funcionan pero nadie queda marcado con `+r`) aunque
-  todo lo demas este bien configurado. Ver
-  [`DBOTS-MIGRATION.md`](DBOTS-MIGRATION.md) "Pruebas reales (parte 3)"
-  y "(parte 4)" para el porque de cada uno.
+  `plus-r-modes.mrc`, `gline-bridge.mrc`, `vhost-fixes.mrc`) -- sin
+  ellos, el login por contraseña y el registro de canales no funcionan
+  (y sin `plus-r-modes.mrc`/`gline-bridge.mrc`/`vhost-fixes.mrc`
+  especificamente, funcionan pero nadie queda marcado con `+r`, y
+  BLOCK/GLINE/KILLCLONES/VHOST no tienen efecto real) aunque todo lo
+  demas este bien configurado. Ver [`DBOTS-MIGRATION.md`](DBOTS-MIGRATION.md)
+  "Pruebas reales (parte 3)", "(parte 4)" y "(parte 5)" para el porque
+  de cada uno.
 - Compila y carga `src/dbotsbridge.c` actualizado (necesario para que
-  `plus-r-modes.mrc` funcione -- añade soporte de canal a su comando
+  `plus-r-modes.mrc` y `gline-bridge.mrc` funcionen -- añade soporte de
+  canal y de GLINE ADD/DEL a su comando
   `DBOTSSVS SVS2MODE`).
 
 ## Limitaciones conocidas (honestas, no las escondo)

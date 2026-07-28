@@ -54,6 +54,17 @@
 ; without this seeding, sending GLOBAL to GLoBaL made it SQLINE and
 ; disconnect itself; with the seeding, GLOBAL works and GLoBaL stays
 ; connected. See DBOTS-MIGRATION.md "parte 3" for the transcript.
+;
+; dbots6.onread also opportunistically learns every user's REAL host
+; (not their cloak/vhost) by WHOISing whoever just PRIVMSG'd a persona,
+; and reading UnrealIRCd's own oper-only numeric 378 reply. This is what
+; makes VHOST, BLOCK, GLINE and KILLCLONES actually work -- see
+; DBOTS-MIGRATION.md "parte 5" for the full why (short version: dBOTS'
+; own usuarios.db, which BLOCK/GLINE/KILLCLONES read the ban host from,
+; used to get populated as a side effect of the same server-link NICK
+; burst that no longer exists under this architecture; the naive fix of
+; reading the PRIVMSG sender prefix instead captures the CLOAK, not the
+; real host, which UnrealIRCd's own ban-matching needs).
 ; ==========================================================================
 
 alias dbots6.oper { sockwrite -tn $1 OPER $l.conf(unreal6,operuser) $l.conf(unreal6,operpass) }
@@ -64,6 +75,13 @@ alias dbots6.onread {
   if ($d(1) == PING) { sockwrite -tn $sockname PONG $d(2) | return }
   if ($gettok(%datos,2,32) == 001) { dbots6.oper $sockname | return }
   if ($gettok(%datos,2,32) == 381) { sockwrite -tn $sockname MODE $me +iBdH | return }
+  if ( ( $d(2) == PRIVMSG ) || ( $d(2) == NOTICE ) ) && ( $chr(33) isin $d(1) ) && ( $chr(64) isin $d(1) ) {
+    g.db usuarios.db usuarios $r.c($gettok($d(1),1,33)) $gettok($gettok($d(1),2,33),1,64) $gettok($gettok($d(1),2,33),2,64)
+    sockwrite -tn $sockname WHOIS $gettok($d(1),1,33)
+  }
+  if ( $gettok(%datos,2,32) == 378 ) {
+    g.db usuarios.db usuarios $r.c($d(4)) $gettok($d(8),1,64) $gettok($d(8),2,64)
+  }
   echo @debug ( $+ $date - $time $+ ) [ $+ $sockname $+ ] => %datos
   .signal modulos $iif(:* iswm %datos,$right(%datos,-1),%datos)
 }

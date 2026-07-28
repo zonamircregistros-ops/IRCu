@@ -814,3 +814,178 @@ Titulo de la ventana del canal tras esto: `#testchan3 [1] [+nrt]`.
   nucleo de UnrealIRCd (`src/modules/nick.c` limpia `+r` de usuario en
   cualquier cambio de nick, automaticamente, sin intervencion de
   dBOTS).
+
+## Pruebas reales (parte 5) -- ipvirtual (VHOST) y los comandos de OPeR
+
+Esta ronda responde a: "conecta todo y haz más pruebas, fíjate si anda
+ipvirtual, fíjate si funciona los comandos de oper: kill/block/gline/
+settime/apodera/limpia/killclones". Mismo entorno de siempre (mIRC 6.2
+real + dBOTS real + UnrealIRCd 6.2.7-git compilado), con dos clientes
+de prueba: `JuanJo_Jaen` (el nick configurado como `root=` en
+`dbots.conf`, con status 8) y `TestLogin` (usuario normal identificado,
+status 3).
+
+### Resultado resumido
+
+| Comando | Resultado |
+|---|---|
+| KILL | Funciona sin cambios -- KILL ya era `CMD_USER` en Unreal 6. |
+| BLOCK | No funcionaba -- corregido (dos bugs reales encontrados). |
+| GLINE ADD/DEL | No funcionaba -- corregido (mismos dos bugs). |
+| KILLCLONES | No funcionaba -- corregido (mismos dos bugs). |
+| ipvirtual (VHOST) | Actualizaba la base de datos pero nunca el host visible -- corregido. |
+| SETTIME | **No se puede arreglar**: UnrealIRCd 6 eliminó esa función del propio ircd. |
+| APODERA | No hace nada -- bug preexistente en dBOTS mismo, no de esta migración. |
+| LIMPIA | No hace nada -- mismo bug preexistente que APODERA. |
+
+### ipvirtual (VHOST): actualizaba la base de datos, nunca el host real
+
+`/msg NiCK VHOST <nick> <host>` (comando de admin) y `/msg NiCK SET
+VHOST <host>` (auto-servicio) respondían "Cambiado el VHOST..." pero
+`/whois` seguia mostrando el cloak de siempre. Leyendo `ni.mrc` sin
+modificar: ninguna de las dos rutas llama jamás a un comando que
+cambie el host real -- solo actualizan la base de datos de dBOTS y
+mandan la misma linea `DB` de sincronizacion con UDB que ya
+documentamos como no-op bajo Unreal 6 (parte 3). Bajo UDB, era el
+propio ircd el que aplicaba el vhost al ver esa linea `DB`; dBOTS
+mismo nunca lo hizo.
+
+A diferencia de `+r` (parte 4), este no necesito ningun bridge nuevo:
+`CHGHOST` ya es un comando de cliente de serie en Unreal 6
+(`src/modules/chghost.c`), protegido solo por el permiso de operclass
+`client:set:host`, que `netadmin` (la clase padre de `dbots-service`)
+ya concede. Solo hacia falta que dBOTS lo llamara. Se añadieron
+llamadas a `CHGHOST` en `nicksetvhost` (auto-servicio) y en las dos
+ramas de `nickserv.vhost` (admin: fijar y quitar). Detalle linea por
+linea en `dbots-adapted/vhost-fixes.mrc`.
+
+Probado en vivo: `/whois TestLogin` paso de `Mew@Clk-E7BB8D1A` a
+`Mew@usuario.cloak.example.org` inmediatamente tras el `VHOST`.
+
+### BLOCK / GLINE / KILLCLONES: dos bugs reales, no uno
+
+**Bug 1 -- UnrealIRCd 6 rechaza el TKL crudo de un cliente, sin log.**
+`BLOCK`/`GLINE`/`KILLCLONES` comparten el alias `g` (`sistema.mrc`),
+que manda una linea cruda `TKL + G ...` tal cual lo hacia bajo UDB
+(donde dBOTS era el propio servidor). Confirmado leyendo el codigo
+fuente de Unreal 6: `cmd_tkl_add()` (`src/modules/tkl.c`) exige
+`IsServer(client) || IsMe(client)` de forma incondicional -- ningun
+permiso de operclass lo puede saltar -- y el chequeo esta ANTES de
+cualquier `unreal_log()`, asi que ni siquiera queda rastro en el log.
+Confirmado en vivo: dBOTS respondia "El usuario ha sido expulsado"
+(su propio mensaje de exito, que se manda sin condicion) mientras
+`gline.db` de UnrealIRCd y `ircd.log` no mostraban absolutamente nada.
+
+Arreglado igual que `+r`: `src/dbotsbridge.c` gano un subcomando
+`DBOTSSVS GLINE ADD/DEL` que llama a las mismas funciones internas de
+la capa TKL que usa `cmd_tkl_add()`/`cmd_tkl_del()`
+(`tkl_add_serverban()`, `tkl_added()`, etc.), todas exportadas para
+uso entre modulos (`extern MODVAR` en `include/h.h`). Detalle completo
+en `dbots-adapted/gline-bridge.mrc`.
+
+**Bug 2 -- el host guardado en `usuarios.db` es el cloak, no el host
+real.** Encontrado al intentar verificar que el GLINE realmente
+funcionaba: dBOTS guarda el host de cada usuario conectado en
+`usuarios.db`, y BLOCK/GLINE/KILLCLONES leen de ahi el host a banear.
+Bajo UDB, ese campo se poblaba con el host que llegaba en el burst
+`NICK` de enlace de servidor (que SI trae el host real). Bajo esta
+adaptacion, ese burst nunca llega (las personas son clientes
+normales), asi que intente una solucion mas simple: leer el host del
+propio prefijo `nick!user@host` de cualquier PRIVMSG que le llegara a
+un bot. **Esa solucion capturaba el CLOAK, no el host real** --
+confirmado con el propio log de conexion de UnrealIRCd:
+`Client connecting: TestLogin (Mew@localhost) [127.0.0.1] [vhost:
+Clk-E7BB8D1A]` -- el prefijo de PRIVMSG usa el vhost mostrado
+(`Clk-E7BB8D1A`), no `localhost`/`127.0.0.1`, que es lo que
+`match_user()` de UnrealIRCd compara de verdad al aplicar un ban.
+
+Arreglo definitivo: `dbots6.onread` ahora, ademas de la captura
+rapida por prefijo, manda un `WHOIS` al autor de cualquier PRIVMSG
+recibido, y lee la respuesta numerica 378 (`is connecting from
+<ident>@<realhost> <ip>`) -- la linea que UnrealIRCd solo le muestra a
+opers (y las 11 personas SI son opers reales), con el host real de
+verdad. Detalle en `sockets-bootstrap.mrc` actualizado.
+
+Con ambos arreglos, `BLOCK`/`GLINE ADD`/`KILLCLONES` quedan
+confirmados en vivo con la propia snotice de UnrealIRCd
+(`G-Line added: '*@localhost' [reason: ...] [by: NiCK] [duration:
+5m]`), en `gline.db` de UnrealIRCd, y en `ircd.log`. `GLINE DEL`
+tambien confirmado (`G-Line removed: ...`).
+
+**Sobre por que no vimos morir la conexion baneada**: UnrealIRCd trae
+de fabrica, sin poder desactivarse por config, una excepcion
+permanente `*@127.0.0.1` / `*@::1` con motivo literal "localhost is
+always exempt" (`add_default_exempts()` en `src/modules/tkl.c`) --
+para que un admin nunca pueda bloquearse a si mismo sin querer. Como
+absolutamente todas las conexiones de esta prueba (bots y clientes de
+prueba por igual) vienen de `127.0.0.1`, ningun GLINE puede matar a
+nadie en este entorno especifico, sea el mecanismo que sea. Esto **no
+es una limitacion del arreglo** -- es UnrealIRCd protegiendo
+localhost por diseño, y de hecho confirma que el TKL se registro de
+verdad en la capa real de baneos (si no se hubiera registrado
+correctamente, ni siquiera se habria evaluado la excepcion). En una
+red real, con usuarios conectando desde IPs normales, el baneo
+mataria la conexion como es de esperar.
+
+### SETTIME: no se puede arreglar, la funcion ya no existe en Unreal 6
+
+`operserv.settime` manda `TSCTL SVSTIME $ctime`. Leyendo
+`src/modules/tsctl.c` de UnrealIRCd 6.2.7-git: el propio comando
+`TSCTL` **elimino la capacidad de modificar la hora**. Cualquier
+invocacion (con cualquier subcomando, incluido `SVSTIME`) se redirige
+forzosamente a un modo de solo lectura (`alltime`, que solo muestra la
+hora del servidor) y manda una notificacion explicita al que lo
+invoca: *"/TSCTL now shows the time on all servers. You can no longer
+modify the time."* Esto no es un permiso que se pueda saltar ni un bug
+de esta adaptacion -- es una decision deliberada de los desarrolladores
+de UnrealIRCd (con buen motivo: forzar la hora de un servidor era una
+funcion pensada para redes con enlaces `TS`-viejos propensas a
+netsplits por desincronizacion de reloj, y es peligrosa de por si). No
+hay sustituto posible. Recomendacion honesta: quitar `SETTIME` del
+menu de comandos de OPeR para el despliegue en Unreal 6, ya que ahora
+mismo dBOTS responde "SETTIME ejecutado" sin condicion aunque no haya
+hecho nada.
+
+### APODERA y LIMPIA: código muerto preexistente en el propio dBOTS, no algo que rompió la migración
+
+Ambos comandos (`operserv.apodera`, `operserv.limpia` en `op.mrc`)
+hacen: fijan `%tipo.who` y `%who.origen`, mandan `WHO <canal>` a
+traves de CHaN, y mandan un aviso al canal de administracion. Se probo
+en vivo (`APODERA #testchan4`, `LIMPIA #testchan4`) y el resultado fue
+**ningun efecto visible en absoluto** mas alla de esas dos acciones --
+ni un mensaje de respuesta al que lo pidio, ni cambio alguno en el
+canal.
+
+Investigando el porque: `%tipo.who` se ASIGNA en varios sitios
+(`operserv.apodera`, `operserv.limpia`, y tambien en `ch.mrc` para sus
+propios `OPS`/`HALFOPS`/`VOICES`/`USERS`/`ENFORCE`) pero
+**`grep -rn "tipo.who ==" sistema/*.mrc` no devuelve ni una sola
+coincidencia en TODO el codigo fuente de dBOTS** -- la variable que
+se supone deberia decirle al manejador de la respuesta `WHO` que hacer
+nunca se lee en ningun sitio. Esto confirma que es codigo incompleto
+del propio dBOTS (probablemente una funcion a medio implementar o
+abandonada), presente igual bajo UDB 3.2.8 original -- no algo que la
+adaptacion a Unreal 6 haya roto. No se intento "completar" esta
+funcionalidad porque eso seria inventar comportamiento nuevo, no
+adaptar lo existente -- fuera del alcance de esta migracion salvo que
+se pida explicitamente.
+
+### Que queda (honesto, no inflado)
+
+- **DBOTSSVS GLINE DEL no propaga la baja a otros servidores
+  enlazados** (a diferencia de ADD, que si lo hace via `tkl_added()`).
+  Motivo tecnico y alcance exacto en el comentario de
+  `dbots_gline()` en `dbotsbridge.c`. Sin probar en una red
+  multi-servidor real (mismo alcance que el resto de limitaciones
+  multi-servidor ya documentadas).
+- **La excepcion de "localhost siempre exento" de UnrealIRCd impidio
+  verificar en vivo que un GLINE realmente mata la conexion baneada**
+  en este entorno de un solo servidor -- verificado estructuralmente
+  (el TKL se registra, se difunde, aparece en `gline.db` y en el
+  snotice real de Unreal) pero no viendo morir a un usuario real no
+  exento.
+- **APODERA y LIMPIA siguen sin hacer nada** -- es codigo incompleto
+  del propio dBOTS, documentado arriba, fuera del alcance de "adaptar
+  dBOTS a Unreal 6".
+- **SETTIME no tiene arreglo posible** -- la funcion se elimino en el
+  propio UnrealIRCd 6.

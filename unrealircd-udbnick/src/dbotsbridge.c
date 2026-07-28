@@ -54,6 +54,23 @@
  * target's server (same pattern core commands like SVSSILENCE use) --
  * so the module must be loaded on every server, not just the one dBOTS
  * connects to.
+ *
+ * GLINE is a special case, not a user/channel-target command like the
+ * rest: dBOTS' own BLOCK/GLINE/KILLCLONES all build a raw client-issued
+ * "TKL + G ..." line (see sistema/op.mrc's `alias g`), which UnrealIRCd
+ * 6 silently drops -- cmd_tkl_add() (src/modules/tkl.c) hard-requires
+ * IsServer(client) || IsMe(client), a check with no operclass
+ * permission that can satisfy it; it isn't logged either, since the
+ * check runs before any unreal_log() call. Confirmed live: dBOTS
+ * reported "El usuario ha sido expulsado" (its own success message,
+ * which fires unconditionally) while UnrealIRCd's own gline.db and
+ * ircd.log show nothing happened at all. DBOTSSVS GLINE ADD/DEL below
+ * calls the same internal TKL-layer functions cmd_tkl_add/cmd_tkl_del
+ * call (tkl_add_serverban(), tkl_added(), etc.), all of which ARE
+ * exported for cross-module use (extern MODVAR in include/h.h) --
+ * bypassing the IsServer()-only gate the same deliberate way
+ * dbots_svs2mode()/dbots_svs2mode_channel() already bypass the
+ * services-only restriction on +r.
  */
 #include "unrealircd.h"
 
@@ -67,6 +84,7 @@ static void dbots_svsnolag(Client *client, Client *target, const char *plusminus
 static void dbots_swhois(Client *client, Client *target, int parc, const char *parv[]);
 static void dbots_svs2mode(Client *client, Client *target, const char *modestr);
 static void dbots_svs2mode_channel(Client *client, Channel *channel, const char *modestr);
+static void dbots_gline(Client *client, int parc, const char *parv[]);
 
 ModuleHeader MOD_HEADER = {
 	"third/dbotsbridge",
@@ -134,6 +152,14 @@ CMD_FUNC(cmd_dbotssvs)
 			if (channel)
 				dbots_svs2mode_channel(client, channel, parv[3]);
 		}
+		return;
+	}
+
+	/* GLINE has no single user/channel target -- it's a ban on an
+	 * ident@host mask, handled entirely separately. See dbots_gline(). */
+	if (!strcasecmp(subcmd, "GLINE"))
+	{
+		dbots_gline(client, parc, parv);
 		return;
 	}
 
@@ -422,4 +448,99 @@ static void dbots_svs2mode_channel(Client *client, Channel *channel, const char 
 	           "$client.details forced channel modes $modestr on $channel.name (via dBOTS bridge)",
 	           log_data_string("modestr", modebuf),
 	           log_data_string("channel", channel->name));
+}
+
+/* ---- GLINE: add/remove a global ident@host ban (TKL type G, i.e.
+ * TKL_KILL|TKL_GLOBAL) -- backs dBOTS' BLOCK, KILLCLONES and GLINE
+ * commands, all of which reduce to the same "ban this ident@host for
+ * N seconds" operation (see sistema/op.mrc's shared `alias g`).
+ *
+ * DBOTSSVS GLINE ADD <ident> <host> <duration-seconds|0-for-permanent> :<reason>
+ * DBOTSSVS GLINE DEL <ident> <host>
+ *
+ * Calls the exact same internal TKL-layer functions cmd_tkl_add() /
+ * cmd_tkl_del() call in src/modules/tkl.c, all exported for
+ * cross-module use (extern MODVAR in include/h.h) -- see the comment
+ * at the top of this file for why this is needed at all (plain client
+ * TKL is silently dropped by UnrealIRCd 6).
+ *
+ * Known limitation, stated plainly: DEL does not call tkl_broadcast_entry()
+ * (unlike ADD, which gets it for free via tkl_added()) because that
+ * function is internal to tkl.c, not exported through the EFunction/
+ * MODVAR mechanism like everything else this bridge calls -- calling it
+ * directly would mean linking against an unexported symbol, which is
+ * exactly the kind of fragile cross-module coupling Unreal's own
+ * module API is designed to avoid. Practical effect: removing a GLINE
+ * lifts it immediately on THIS server (new/existing connections are no
+ * longer affected here) but, on a hub+leaf network, other linked
+ * servers won't hear about the removal until it naturally expires or
+ * is also removed there. Adding a GLINE does not have this gap -- it
+ * broadcasts correctly via tkl_added(). Not tested on a real
+ * multi-server network either way (same honestly-stated limitation as
+ * everything else multi-server in this repo).
+ */
+static void dbots_gline(Client *client, int parc, const char *parv[])
+{
+	int type = TKL_KILL | TKL_GLOBAL;
+	const char *action;
+	const char *usermask, *hostmask;
+	TKL *tkl;
+
+	if (parc < 5)
+		return;
+
+	action = parv[2];
+	usermask = parv[3];
+	hostmask = parv[4];
+
+	if (strchr(usermask, '@') || strchr(hostmask, '@'))
+		return;
+
+	if (!strcasecmp(action, "ADD"))
+	{
+		time_t duration, expire_at, set_at;
+		const char *reason;
+
+		if (parc < 7)
+			return;
+
+		duration = (time_t)atol(parv[5]);
+		reason = parv[6];
+		set_at = TStime();
+		expire_at = (duration > 0) ? (set_at + duration) : 0;
+
+		tkl = find_tkl_serverban(type, usermask, hostmask, 0);
+		if (tkl)
+			return; /* already exists, same as cmd_tkl_add's behavior */
+
+		tkl = tkl_add_serverban(type, usermask, hostmask, NULL, reason,
+		                         client->name, expire_at, set_at, 0, 0);
+		if (!tkl)
+			return;
+
+		tkl_added(client, tkl);
+
+		unreal_log(ULOG_INFO, "dbotsbridge", "DBOTS_GLINE_ADD", client,
+		           "$client.details added a GLINE on $usermask@$hostmask [reason: $reason] (via dBOTS bridge)",
+		           log_data_string("usermask", usermask),
+		           log_data_string("hostmask", hostmask),
+		           log_data_string("reason", reason));
+	}
+	else if (!strcasecmp(action, "DEL"))
+	{
+		tkl = find_tkl_serverban(type, usermask, hostmask, 0);
+		if (!tkl)
+			return;
+		if (tkl->flags & TKL_FLAG_CONFIG)
+			return; /* config-defined, not ours to remove */
+
+		sendnotice_tkl_del(client->name, tkl);
+		RunHook(HOOKTYPE_TKL_DEL, client, tkl);
+		tkl_del_line(tkl);
+
+		unreal_log(ULOG_INFO, "dbotsbridge", "DBOTS_GLINE_DEL", client,
+		           "$client.details removed a GLINE on $usermask@$hostmask (via dBOTS bridge)",
+		           log_data_string("usermask", usermask),
+		           log_data_string("hostmask", hostmask));
+	}
 }
