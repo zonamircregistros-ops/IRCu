@@ -14,7 +14,7 @@
       <div class="footer-col">
         <h4>Red</h4>
         <a href="/index.php">Inicio</a>
-        <a href="/index.php#quienes-somos">Quiénes somos</a>
+        <a href="/historia.php">Nuestra historia</a>
         <a href="/salas.php">Salas</a>
         <a href="/servicios.php">Servicios</a>
         <a href="/staff.php">Staff</a>

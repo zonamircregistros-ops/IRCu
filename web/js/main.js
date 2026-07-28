@@ -111,3 +111,51 @@ document.querySelectorAll('.copy-btn').forEach((btn) => {
     writeState(state);
   });
 })();
+
+// Carrusel de noticias (home): avanza solo, con flechas y puntos.
+(() => {
+  const carousel = document.getElementById('news-carousel');
+  if (!carousel) return;
+
+  const track = carousel.querySelector('.news-carousel-track');
+  const slides = Array.from(carousel.querySelectorAll('.news-slide'));
+  const dots = Array.from(document.querySelectorAll('#news-dots .carousel-dot'));
+  const prevBtn = document.getElementById('news-prev');
+  const nextBtn = document.getElementById('news-next');
+  const AUTOPLAY_MS = 6000;
+
+  let index = 0;
+  let timer = null;
+
+  const goTo = (newIndex) => {
+    index = (newIndex + slides.length) % slides.length;
+    track.style.transform = `translateX(-${index * 100}%)`;
+    slides.forEach((slide, i) => {
+      const isActive = i === index;
+      slide.toggleAttribute('aria-hidden', !isActive);
+      slide.tabIndex = isActive ? 0 : -1;
+    });
+    dots.forEach((dot, i) => dot.classList.toggle('is-active', i === index));
+  };
+
+  const restartAutoplay = () => {
+    if (slides.length < 2) return;
+    clearInterval(timer);
+    timer = setInterval(() => goTo(index + 1), AUTOPLAY_MS);
+  };
+
+  if (prevBtn) prevBtn.addEventListener('click', () => { goTo(index - 1); restartAutoplay(); });
+  if (nextBtn) nextBtn.addEventListener('click', () => { goTo(index + 1); restartAutoplay(); });
+  dots.forEach((dot) => {
+    dot.addEventListener('click', () => {
+      goTo(parseInt(dot.dataset.index, 10));
+      restartAutoplay();
+    });
+  });
+
+  carousel.addEventListener('mouseenter', () => clearInterval(timer));
+  carousel.addEventListener('mouseleave', restartAutoplay);
+
+  goTo(0);
+  restartAutoplay();
+})();
