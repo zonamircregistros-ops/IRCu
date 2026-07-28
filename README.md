@@ -7,6 +7,12 @@ Config de ejemplo curada a partir de los archivos oficiales de
 rapido una red publica con servicios (Anope/Atheme), TLS y proteccion
 anti-flood ya activada.
 
+## Sitio web (`web/`)
+
+Ademas de la config del ircd, el repo incluye el sitio web publico de la
+red (landing, directorio de salas, staff) con panel de administracion
+en PHP + MySQL. Ver [`web/README.md`](web/README.md) para instalarlo.
+
 ## Estructura
 
 ```

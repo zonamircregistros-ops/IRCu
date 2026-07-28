@@ -1,0 +1,40 @@
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <a href="index.php" class="brand">
+        <span class="brand-mark">#</span>
+        <span class="brand-name"><?= h(setting('site_name')) ?></span>
+      </a>
+      <p><?= h(setting('tagline')) ?></p>
+    </div>
+
+    <div class="footer-links">
+      <div class="footer-col">
+        <h4>Red</h4>
+        <a href="index.php">Inicio</a>
+        <a href="salas.php">Salas</a>
+        <a href="staff.php">Staff</a>
+      </div>
+      <div class="footer-col">
+        <h4>Comunidad</h4>
+        <a href="normas.php">Normas</a>
+        <a href="conectar.php">Conectar</a>
+        <a href="mailto:<?= h(setting('staff_email')) ?>">Contacto</a>
+      </div>
+      <div class="footer-col">
+        <h4>Acceso</h4>
+        <a href="<?= h(webchat_link()) ?>" target="_blank" rel="noopener">Webchat</a>
+        <a href="conectar.php"><?= h(setting('irc_server')) ?>:<?= h(setting('irc_port_tls')) ?></a>
+      </div>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>&copy; <?= date('Y') ?> <?= h(setting('site_name')) ?> IRC Network. Todos los derechos reservados.</p>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

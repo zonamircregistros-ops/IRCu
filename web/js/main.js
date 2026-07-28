@@ -1,5 +1,3 @@
-document.getElementById('year').textContent = new Date().getFullYear();
-
 const navToggle = document.getElementById('nav-toggle');
 const mainNav = document.getElementById('main-nav');
 
