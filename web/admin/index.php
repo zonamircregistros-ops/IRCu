@@ -10,6 +10,9 @@ $channelCounts = db()->query(
 
 $staffTotal = (int) db()->query('SELECT COUNT(*) FROM staff WHERE is_active = 1')->fetchColumn();
 $totalChannels = array_sum($channelCounts);
+$newsTotal = (int) db()->query('SELECT COUNT(*) FROM news WHERE is_published = 1')->fetchColumn();
+$servicesTotal = (int) db()->query('SELECT COUNT(*) FROM services WHERE is_active = 1')->fetchColumn();
+$pendingRequests = (int) db()->query("SELECT COUNT(*) FROM bnc_requests WHERE status = 'pendiente'")->fetchColumn();
 ?>
 
 <div class="admin-topbar">
@@ -29,6 +32,18 @@ $totalChannels = array_sum($channelCounts);
     <div class="num"><?= $staffTotal ?></div>
     <div class="label">Miembros del staff</div>
   </div>
+  <div class="admin-stat">
+    <div class="num"><?= $newsTotal ?></div>
+    <div class="label">Noticias publicadas</div>
+  </div>
+  <div class="admin-stat">
+    <div class="num"><?= $servicesTotal ?></div>
+    <div class="label">Servicios activos</div>
+  </div>
+  <div class="admin-stat">
+    <div class="num"><?= $pendingRequests ?></div>
+    <div class="label">Solicitudes BNC pendientes</div>
+  </div>
 </div>
 
 <div class="admin-card">
@@ -36,6 +51,8 @@ $totalChannels = array_sum($channelCounts);
   <div class="form-actions">
     <a class="btn btn-primary" href="salas_form.php">+ Nueva sala</a>
     <a class="btn btn-ghost" href="staff_form.php">+ Nuevo staff</a>
+    <a class="btn btn-ghost" href="news_form.php">+ Nueva noticia</a>
+    <a class="btn btn-ghost" href="bnc_requests.php">Ver solicitudes BNC</a>
     <a class="btn btn-ghost" href="settings.php">Editar datos del sitio</a>
   </div>
 </div>

@@ -37,9 +37,13 @@ para editar todo sin tocar código.
 ```
 web/
   index.php, salas.php, staff.php, normas.php, conectar.php   páginas públicas
-  includes/       conexión a DB, helpers, header/footer compartidos
+  noticias.php, noticia.php    listado y detalle de noticias
+  servicios.php                Git/Wiki/Nube/Webmail/Natasha BNC
+  natasha/                     Natasha Bouncer: index.php (ES), en.php (EN),
+                                solicitar.php (formulario bilingüe de solicitud)
+  includes/       conexión a DB, helpers, header/footer + radio_player.php
   admin/          panel de administración (login requerido)
-  css/, js/       estilos y JS del sitio público
+  css/, js/       estilos y JS del sitio público (incluye el reproductor de radio)
   assets/         favicon, etc.
 config.example.php   plantilla de configuración (config.php NO se versiona)
 ```
@@ -49,9 +53,17 @@ config.example.php   plantilla de configuración (config.php NO se versiona)
 - **Salas**: nombre, categoría (general/regional/adultos/ayuda), descripción,
   marca NSFW, orden y si está activa.
 - **Staff**: nick, rol (administrador/ircop/soporte), bio, avatar y orden.
-- **Ajustes del sitio**: nombre del sitio, tagline, URL del webchat, servidor
-  IRC, puertos, canal general y email de contacto — todo lo que las páginas
-  públicas muestran dinámicamente.
+- **Noticias**: título, slug, resumen, contenido, fecha y si está publicada.
+- **Servicios**: nombre, URL, descripción e ícono (tarjetas de servicios.php).
+- **Redes BNC**: las redes donde está Natasha (host, IP, puerto, SSL, estado
+  operativo/no operativo y motivo si está prohibida).
+- **Solicitudes BNC**: pedidos del formulario de `/natasha/solicitar.php`,
+  con cambio de estado (pendiente/aprobado/rechazado).
+- **Ajustes del sitio**: nombre del sitio, tagline, datos de conexión IRC,
+  URL/nombre del stream de radio y los límites y precios del servicio
+  Natasha Bouncer (plan Free, precio Premium, extra por IP privada).
 
 Todo el acceso al panel requiere sesión iniciada; las consultas usan
-sentencias preparadas (PDO) y los formularios llevan token CSRF.
+sentencias preparadas (PDO) y los formularios llevan token CSRF. El
+formulario público de solicitud de Natasha lleva además un honeypot básico
+contra bots.

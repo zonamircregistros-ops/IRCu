@@ -3,16 +3,33 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/auth.php';
 require_login();
 
-$fieldLabels = [
-    'site_name'       => 'Nombre del sitio',
-    'tagline'         => 'Frase / tagline',
-    'webchat_url'     => 'URL del webchat',
-    'irc_server'      => 'Servidor IRC',
-    'irc_port_tls'    => 'Puerto TLS',
-    'irc_port_plain'  => 'Puerto sin TLS',
-    'general_channel' => 'Canal general',
-    'staff_email'     => 'Email de contacto del staff',
+$fieldGroups = [
+    'Sitio' => [
+        'site_name'       => 'Nombre del sitio',
+        'tagline'         => 'Frase / tagline',
+        'staff_email'     => 'Email de contacto del staff',
+    ],
+    'IRC' => [
+        'webchat_url'     => 'URL del webchat',
+        'irc_server'      => 'Servidor IRC',
+        'irc_port_tls'    => 'Puerto TLS',
+        'irc_port_plain'  => 'Puerto sin TLS',
+        'general_channel' => 'Canal general',
+    ],
+    'Radio' => [
+        'radio_stream_url'   => 'URL del stream de radio',
+        'radio_station_name' => 'Nombre de la radio',
+    ],
+    'Natasha Bouncer' => [
+        'bnc_free_limit'              => 'Límite de redes en plan Free (total)',
+        'bnc_free_own_choice'         => 'Redes a elección en plan Free (además de Chateanos)',
+        'bnc_premium_price'           => 'Precio Premium (mensual)',
+        'bnc_premium_extra_ip_price'  => 'Precio extra por IP privada',
+        'bnc_service_status'          => 'Estado del servicio',
+    ],
 ];
+
+$fieldLabels = array_merge(...array_values($fieldGroups));
 
 $errors = [];
 
@@ -63,19 +80,31 @@ require __DIR__ . '/includes/admin_header.php';
   <div class="flash flash-error"><?= h(implode(' ', $errors)) ?></div>
 <?php endif; ?>
 
-<div class="admin-card">
-  <form class="admin-form" method="post" action="settings.php">
-    <?= csrf_field() ?>
-    <?php foreach ($fieldLabels as $key => $label): ?>
-      <div class="form-group">
-        <label for="<?= h($key) ?>"><?= h($label) ?></label>
-        <input type="text" id="<?= h($key) ?>" name="<?= h($key) ?>" value="<?= h($current[$key] ?? '') ?>">
+<form method="post" action="settings.php">
+  <?= csrf_field() ?>
+  <?php foreach ($fieldGroups as $groupLabel => $fields): ?>
+    <div class="admin-card">
+      <h2 style="margin-top:0; font-family: var(--font-display); font-size:1.1rem;"><?= h($groupLabel) ?></h2>
+      <div class="admin-form">
+        <?php foreach ($fields as $key => $label): ?>
+          <div class="form-group">
+            <label for="<?= h($key) ?>"><?= h($label) ?></label>
+            <?php if ($key === 'bnc_service_status'): ?>
+              <select id="<?= h($key) ?>" name="<?= h($key) ?>">
+                <option value="operativo" <?= ($current[$key] ?? '') === 'operativo' ? 'selected' : '' ?>>Operativo</option>
+                <option value="no_operativo" <?= ($current[$key] ?? '') === 'no_operativo' ? 'selected' : '' ?>>No operativo</option>
+              </select>
+            <?php else: ?>
+              <input type="text" id="<?= h($key) ?>" name="<?= h($key) ?>" value="<?= h($current[$key] ?? '') ?>">
+            <?php endif; ?>
+          </div>
+        <?php endforeach; ?>
       </div>
-    <?php endforeach; ?>
-    <div class="form-actions">
-      <button class="btn btn-primary" type="submit">Guardar ajustes</button>
     </div>
-  </form>
-</div>
+  <?php endforeach; ?>
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">Guardar ajustes</button>
+  </div>
+</form>
 
 <?php require __DIR__ . '/includes/admin_footer.php'; ?>

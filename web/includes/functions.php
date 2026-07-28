@@ -26,6 +26,13 @@ function get_settings(): array
         'irc_port_plain' => '6667',
         'general_channel'=> '#Chateanos',
         'staff_email'    => 'staff@chateanos.com',
+        'radio_stream_url'   => 'https://radio.chateanos.com/listen/bellaciao/radio.mp3',
+        'radio_station_name' => 'Radio Chateanos',
+        'bnc_free_limit'             => '5',
+        'bnc_free_own_choice'        => '4',
+        'bnc_premium_price'          => '1.50',
+        'bnc_premium_extra_ip_price' => '1',
+        'bnc_service_status'         => 'operativo',
     ];
 
     try {
@@ -102,4 +109,79 @@ function webchat_link(string $channelName = ''): string
         return $url;
     }
     return $url . '/?channels=' . rawurlencode($channelName);
+}
+
+function slugify(string $text): string
+{
+    $text = iconv('UTF-8', 'ASCII//TRANSLIT', $text) ?: $text;
+    $text = strtolower($text);
+    $text = preg_replace('/[^a-z0-9]+/', '-', $text) ?? '';
+    return trim($text, '-');
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_news_list(bool $publishedOnly = true, ?int $limit = null): array
+{
+    $sql = 'SELECT id, title, slug, excerpt, published_at FROM news';
+    if ($publishedOnly) {
+        $sql .= ' WHERE is_published = 1 AND published_at <= NOW()';
+    }
+    $sql .= ' ORDER BY published_at DESC';
+    if ($limit !== null) {
+        $sql .= ' LIMIT ' . (int) $limit;
+    }
+
+    try {
+        return db()->query($sql)->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * @return array<string, mixed>|null
+ */
+function get_news_by_slug(string $slug): ?array
+{
+    try {
+        $stmt = db()->prepare(
+            'SELECT * FROM news WHERE slug = :slug AND is_published = 1 AND published_at <= NOW() LIMIT 1'
+        );
+        $stmt->execute(['slug' => $slug]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    } catch (PDOException $e) {
+        return null;
+    }
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_services(): array
+{
+    try {
+        return db()->query(
+            'SELECT name, url, description, icon FROM services WHERE is_active = 1 ORDER BY sort_order, name'
+        )->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_bnc_networks(): array
+{
+    try {
+        return db()->query(
+            'SELECT network_name, host, ip_address, port, use_ssl, status, banned_reason
+             FROM bnc_networks WHERE is_active = 1 ORDER BY sort_order, network_name'
+        )->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
 }
