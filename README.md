@@ -280,3 +280,15 @@ siguiendo su propia documentacion, usando el mismo nombre de servidor
   - https://github.com/inspircd/inspircd/blob/insp4/docs/conf/opers.example.conf
   - https://github.com/inspircd/inspircd/blob/insp4/docs/conf/links.example.conf
   - https://github.com/inspircd/inspircd/blob/insp4/docs/conf/filter.example.conf
+
+## Otros componentes de este repo
+
+- **`unrealircd-udbnick/`**: si en vez de (o ademas de) InspIRCd vais a
+  correr UnrealIRCd 6.2.6 para dar soporte a bots dBOTS estilo
+  IRC-Hispano, ahi hay dos modulos de terceros para Unreal 6
+  (`udbnick`: `/NICK usuario:contrasena`; `dbotsbridge`: comandos de
+  servicios que dBOTS necesita y Unreal 6 solo permite a servidores
+  enlazados) y una auditoria completa
+  (`DBOTS-MIGRATION.md`) de por que dBOTS no puede enlazar tal cual a un
+  Unreal moderno y como adaptarlo. Ver los READMEs de ese directorio para
+  alcance, instalacion y limitaciones conocidas.
