@@ -28,6 +28,7 @@ $requests = db()->query(
         <th>Plan</th>
         <th>Datacenter</th>
         <th>Redes pedidas</th>
+        <th>Contraseña BNC</th>
         <th>Fecha</th>
         <th>Estado</th>
         <th></th>
@@ -35,7 +36,7 @@ $requests = db()->query(
     </thead>
     <tbody>
       <?php if (empty($requests)): ?>
-        <tr><td colspan="8">Todavía no llegaron solicitudes.</td></tr>
+        <tr><td colspan="9">Todavía no llegaron solicitudes.</td></tr>
       <?php endif; ?>
       <?php foreach ($requests as $r): ?>
         <tr>
@@ -44,6 +45,7 @@ $requests = db()->query(
           <td><?= $r['plan'] === 'premium' ? 'Premium' : 'Free' ?></td>
           <td><?= h($r['datacenter'] ?: '—') ?></td>
           <td><?= h($r['networks_wanted'] ?: '—') ?></td>
+          <td><?= $r['bnc_password'] ? '<code>' . h($r['bnc_password']) . '</code>' : '—' ?></td>
           <td><?= h(date('d/m/Y H:i', strtotime($r['created_at']))) ?></td>
           <td>
             <form method="post" action="bnc_requests_update.php" style="display:flex; gap:6px; align-items:center;">
@@ -67,7 +69,7 @@ $requests = db()->query(
         </tr>
         <?php if (!empty($r['notes'])): ?>
           <tr>
-            <td colspan="8" style="color: var(--text-dimmer); font-size: 0.85rem;">📝 <?= h($r['notes']) ?></td>
+            <td colspan="9" style="color: var(--text-dimmer); font-size: 0.85rem;">📝 <?= h($r['notes']) ?></td>
           </tr>
         <?php endif; ?>
       <?php endforeach; ?>

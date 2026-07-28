@@ -119,8 +119,73 @@ CREATE TABLE IF NOT EXISTS bnc_requests (
   datacenter      VARCHAR(40)  NULL,
   networks_wanted VARCHAR(255) NULL,
   notes           TEXT         NULL,
+  bnc_password    VARCHAR(64)  NULL,
   status          ENUM('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
   created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_status (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- gline_appeals: apelaciones de expulsiones (G-Line)
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS gline_appeals (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  ip_or_range     VARCHAR(100) NOT NULL,
+  username        VARCHAR(60)  NOT NULL,
+  email           VARCHAR(160) NOT NULL,
+  reason          TEXT         NOT NULL,
+  admin_response  TEXT         NULL,
+  status          ENUM('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
+  created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_status (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- ircop_applications: postulaciones para ser IRCop
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ircop_applications (
+  id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  username          VARCHAR(60)  NOT NULL,
+  real_name         VARCHAR(120) NOT NULL,
+  age               TINYINT UNSIGNED NOT NULL,
+  birthdate         DATE         NOT NULL,
+  email             VARCHAR(160) NOT NULL,
+  user_history      TEXT         NOT NULL,
+  notable_history   TEXT         NULL,
+  reason            TEXT         NOT NULL,
+  admin_notes       TEXT         NULL,
+  status            ENUM('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
+  created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_status (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- tickets: soporte / reclamos, con seguimiento por token
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tickets (
+  id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  token             VARCHAR(64)  NOT NULL UNIQUE,
+  subject           VARCHAR(160) NOT NULL,
+  category          ENUM('soporte','reclamo','otro') NOT NULL DEFAULT 'soporte',
+  requester_name    VARCHAR(80)  NOT NULL,
+  requester_email   VARCHAR(160) NOT NULL,
+  status            ENUM('abierto','aprobado','rechazado','cerrado') NOT NULL DEFAULT 'abierto',
+  created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- ticket_messages: hilo de conversación de cada ticket
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ticket_messages (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  ticket_id   INT UNSIGNED NOT NULL,
+  sender      ENUM('usuario','staff') NOT NULL,
+  message     TEXT         NOT NULL,
+  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_ticket (ticket_id, created_at),
+  CONSTRAINT fk_ticket_messages_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -27,7 +27,10 @@ INSERT INTO settings (setting_key, setting_value) VALUES
   ('bnc_free_own_choice',      '4'),
   ('bnc_premium_price',        '1.50'),
   ('bnc_premium_extra_ip_price','1'),
-  ('bnc_service_status',       'operativo')
+  ('bnc_service_status',       'operativo'),
+  ('bnc_connect_host',         'natasha.chateanos.com'),
+  ('bnc_connect_port',         '1025'),
+  ('natasha_mail_from',        'natasha@chateanos.com')
 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
 
 INSERT INTO channels (name, category, description, is_nsfw, sort_order) VALUES

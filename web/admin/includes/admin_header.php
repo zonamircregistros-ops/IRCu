@@ -9,15 +9,18 @@ $pageTitle ??= 'Panel';
 $activeAdminNav ??= '';
 
 $adminNavItems = [
-    'dashboard'    => ['href' => 'index.php',          'label' => 'Resumen'],
-    'salas'        => ['href' => 'salas.php',          'label' => 'Salas'],
-    'staff'        => ['href' => 'staff.php',          'label' => 'Staff'],
-    'news'         => ['href' => 'news.php',           'label' => 'Noticias'],
-    'services'     => ['href' => 'services.php',       'label' => 'Servicios'],
-    'bnc_networks' => ['href' => 'bnc_networks.php',   'label' => 'Redes BNC'],
-    'bnc_requests' => ['href' => 'bnc_requests.php',   'label' => 'Solicitudes BNC'],
-    'settings'     => ['href' => 'settings.php',       'label' => 'Ajustes del sitio'],
-    'account'      => ['href' => 'account.php',        'label' => 'Mi cuenta'],
+    'dashboard'           => ['href' => 'index.php',               'label' => 'Resumen'],
+    'salas'               => ['href' => 'salas.php',               'label' => 'Salas'],
+    'staff'                => ['href' => 'staff.php',              'label' => 'Staff'],
+    'news'                 => ['href' => 'news.php',               'label' => 'Noticias'],
+    'services'             => ['href' => 'services.php',           'label' => 'Servicios'],
+    'bnc_networks'         => ['href' => 'bnc_networks.php',       'label' => 'Redes BNC'],
+    'bnc_requests'         => ['href' => 'bnc_requests.php',       'label' => 'Solicitudes BNC'],
+    'gline_appeals'        => ['href' => 'gline_appeals.php',      'label' => 'Apelaciones G-Line'],
+    'ircop_applications'   => ['href' => 'ircop_applications.php', 'label' => 'Postulaciones IRCop'],
+    'tickets'              => ['href' => 'tickets.php',            'label' => 'Tickets'],
+    'settings'             => ['href' => 'settings.php',           'label' => 'Ajustes del sitio'],
+    'account'              => ['href' => 'account.php',            'label' => 'Mi cuenta'],
 ];
 
 $flash = flash_get();

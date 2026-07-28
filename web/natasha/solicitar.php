@@ -9,7 +9,7 @@ $t = $lang === 'en' ? [
     'intro' => 'Fill out the form and staff will reach out to activate your account.',
     'back' => '← Back to Natasha Bouncer',
     'nick' => 'IRC nick',
-    'contact' => 'Contact (email or IRC network + nick)',
+    'contact' => 'Contact email',
     'plan' => 'Plan',
     'plan_free' => 'Free (up to 5 networks)',
     'plan_premium' => 'Premium ($' . setting('bnc_premium_price') . '/month, unlimited)',
@@ -25,13 +25,14 @@ $t = $lang === 'en' ? [
     'success_title' => 'Request received',
     'success_body' => 'Thanks! Staff will get in touch using the contact info you provided to finish setting up your Natasha account.',
     'success_back' => 'Back to Natasha Bouncer',
-    'error_required' => 'Nick and contact info are required.',
+    'error_required' => 'Nick and contact email are required.',
+    'error_email' => 'Enter a valid email address.',
 ] : [
     'title' => 'Solicitar Natasha Bouncer',
     'intro' => 'Completá el formulario y el staff te va a contactar para activar tu cuenta.',
     'back' => '← Volver a Natasha Bouncer',
     'nick' => 'Nick de IRC',
-    'contact' => 'Contacto (email o red IRC + nick)',
+    'contact' => 'Email de contacto',
     'plan' => 'Plan',
     'plan_free' => 'Free (hasta 5 redes)',
     'plan_premium' => 'Premium ($' . setting('bnc_premium_price') . '/mes, ilimitado)',
@@ -47,7 +48,8 @@ $t = $lang === 'en' ? [
     'success_title' => 'Solicitud recibida',
     'success_body' => '¡Gracias! El staff se va a poner en contacto usando el dato que dejaste para terminar de activar tu cuenta de Natasha.',
     'success_back' => 'Volver a Natasha Bouncer',
-    'error_required' => 'El nick y el contacto son obligatorios.',
+    'error_required' => 'El nick y el email de contacto son obligatorios.',
+    'error_email' => 'Ingresá un email válido.',
 ];
 
 $backHref = '/natasha/' . ($lang === 'en' ? 'en.php' : 'index.php');
@@ -79,6 +81,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         if ($form['nick'] === '' || $form['contact'] === '') {
             $errors[] = $t['error_required'];
+        } elseif (!filter_var($form['contact'], FILTER_VALIDATE_EMAIL)) {
+            $errors[] = $t['error_email'];
         }
 
         if (empty($errors)) {
@@ -142,7 +146,7 @@ require __DIR__ . '/../includes/header.php';
 
           <div class="form-group">
             <label for="contact"><?= h($t['contact']) ?></label>
-            <input type="text" id="contact" name="contact" value="<?= h($form['contact']) ?>" required maxlength="160">
+            <input type="email" id="contact" name="contact" value="<?= h($form['contact']) ?>" required maxlength="160">
           </div>
 
           <div class="form-group">

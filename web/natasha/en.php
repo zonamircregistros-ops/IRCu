@@ -32,6 +32,7 @@ require __DIR__ . '/../includes/header.php';
     <div class="section-head">
       <h2>What is a bouncer?</h2>
       <p>A BNC (bouncer) is a permanent bridge between you and IRC: it stays connected 24/7, keeps your history, and reconnects you automatically even if you close your client, lose internet, or shut down your computer.</p>
+      <p><a href="/natasha/tutorial.php?lang=en">Already have an account? See the connection tutorial →</a></p>
     </div>
 
     <div class="plan-grid">

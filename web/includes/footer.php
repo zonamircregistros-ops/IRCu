@@ -14,6 +14,7 @@
       <div class="footer-col">
         <h4>Red</h4>
         <a href="/index.php">Inicio</a>
+        <a href="/index.php#quienes-somos">Quiénes somos</a>
         <a href="/salas.php">Salas</a>
         <a href="/servicios.php">Servicios</a>
         <a href="/staff.php">Staff</a>
@@ -22,7 +23,8 @@
         <h4>Comunidad</h4>
         <a href="/noticias.php">Noticias</a>
         <a href="/normas.php">Normas</a>
-        <a href="/conectar.php">Conectar</a>
+        <a href="/faq.php">Preguntas frecuentes</a>
+        <a href="/gestiones.php">Gestiones</a>
         <a href="mailto:<?= h(setting('staff_email')) ?>">Contacto</a>
       </div>
       <div class="footer-col">

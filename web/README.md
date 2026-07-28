@@ -7,6 +7,11 @@ para editar todo sin tocar código.
 
 - PHP 8.1+ con extensión `pdo_mysql`
 - MySQL o MariaDB
+- Un MTA local (Postfix) configurado para que `sendmail_path` de PHP pueda
+  entregar correo saliente — lo usan las notificaciones de Natasha Bouncer,
+  apelaciones G-Line y tickets (`web/includes/mailer.php`, vía `mail()`).
+  Sin esto los formularios siguen funcionando, pero el envío de emails
+  queda registrado como fallido en el log de errores de PHP.
 
 ## Instalación
 
@@ -40,8 +45,12 @@ web/
   noticias.php, noticia.php    listado y detalle de noticias
   servicios.php                Git/Wiki/Nube/Webmail/Natasha BNC
   natasha/                     Natasha Bouncer: index.php (ES), en.php (EN),
-                                solicitar.php (formulario bilingüe de solicitud)
-  includes/       conexión a DB, helpers, header/footer + radio_player.php
+                                solicitar.php y tutorial.php (bilingües)
+  faq.php                      preguntas frecuentes sobre IRC y la red
+  gestiones.php                 hub de trámites con el staff
+  apelar.php, ircop.php, tickets.php, ticket.php   formularios de Gestiones
+                                y seguimiento de tickets por token
+  includes/       conexión a DB, helpers, mailer.php, header/footer + radio_player.php
   admin/          panel de administración (login requerido)
   css/, js/       estilos y JS del sitio público (incluye el reproductor de radio)
   assets/         favicon, etc.
@@ -60,10 +69,27 @@ config.example.php   plantilla de configuración (config.php NO se versiona)
 - **Solicitudes BNC**: pedidos del formulario de `/natasha/solicitar.php`,
   con cambio de estado (pendiente/aprobado/rechazado).
 - **Ajustes del sitio**: nombre del sitio, tagline, datos de conexión IRC,
-  URL/nombre del stream de radio y los límites y precios del servicio
-  Natasha Bouncer (plan Free, precio Premium, extra por IP privada).
+  host/puerto de conexión de Natasha Bouncer, URL/nombre del stream de radio
+  y los límites y precios del servicio (plan Free, precio Premium, extra
+  por IP privada).
+- **Apelaciones G-Line**: revisar y responder apelaciones de expulsión
+  (aprobar/rechazar + respuesta, se notifica por email al usuario).
+- **Postulaciones IRCop**: ver el detalle completo de cada postulación y
+  cambiar su estado, con notas internas del staff.
+- **Tickets**: hilo de conversación con el usuario, respuesta desde el panel
+  (notifica por email) y estado (abierto/aprobado/rechazado/cerrado).
+
+### Notificaciones por email
+
+Al aprobar o rechazar una solicitud de Natasha Bouncer se genera una
+contraseña aleatoria (visible solo para el admin en el listado) y se le
+envía al usuario el host, puerto, usuario y contraseña de conexión, junto
+con el link al tutorial (`/natasha/tutorial.php`). Las apelaciones G-Line
+mandan confirmación al enviarse y la respuesta del staff por email; los
+tickets avisan por email en cada respuesta del staff, con el link privado
+de seguimiento (`/ticket.php?token=...`).
 
 Todo el acceso al panel requiere sesión iniciada; las consultas usan
-sentencias preparadas (PDO) y los formularios llevan token CSRF. El
-formulario público de solicitud de Natasha lleva además un honeypot básico
-contra bots.
+sentencias preparadas (PDO) y los formularios administrativos llevan token
+CSRF. Los formularios públicos (solicitud de Natasha, apelaciones,
+postulaciones, tickets) llevan un honeypot básico contra bots.

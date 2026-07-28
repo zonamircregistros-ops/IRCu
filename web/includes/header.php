@@ -12,13 +12,13 @@ $pageDescription ??= setting('tagline');
 $extraStyles ??= [];
 
 $navItems = [
-    'inicio'    => ['href' => '/index.php',     'label' => 'Inicio'],
-    'salas'     => ['href' => '/salas.php',     'label' => 'Salas'],
-    'servicios' => ['href' => '/servicios.php', 'label' => 'Servicios'],
-    'staff'     => ['href' => '/staff.php',     'label' => 'Staff'],
-    'noticias'  => ['href' => '/noticias.php',  'label' => 'Noticias'],
-    'normas'    => ['href' => '/normas.php',    'label' => 'Normas'],
-    'conectar'  => ['href' => '/conectar.php',  'label' => 'Conectar'],
+    'inicio'     => ['href' => '/index.php',     'label' => 'Inicio'],
+    'salas'      => ['href' => '/salas.php',     'label' => 'Salas'],
+    'servicios'  => ['href' => '/servicios.php', 'label' => 'Servicios'],
+    'staff'      => ['href' => '/staff.php',     'label' => 'Staff'],
+    'noticias'   => ['href' => '/noticias.php',  'label' => 'Noticias'],
+    'gestiones'  => ['href' => '/gestiones.php', 'label' => 'Gestiones'],
+    'conectar'   => ['href' => '/conectar.php',  'label' => 'Conectar'],
 ];
 ?>
 <!DOCTYPE html>

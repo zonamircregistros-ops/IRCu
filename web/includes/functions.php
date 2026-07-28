@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/mailer.php';
 
 function h(?string $value): string
 {
@@ -33,6 +34,9 @@ function get_settings(): array
         'bnc_premium_price'          => '1.50',
         'bnc_premium_extra_ip_price' => '1',
         'bnc_service_status'         => 'operativo',
+        'bnc_connect_host'   => 'natasha.chateanos.com',
+        'bnc_connect_port'   => '1025',
+        'natasha_mail_from'  => 'natasha@chateanos.com',
     ];
 
     try {
@@ -184,4 +188,25 @@ function get_bnc_networks(): array
     } catch (PDOException $e) {
         return [];
     }
+}
+
+/**
+ * @return array<string, mixed>|null
+ */
+function get_ticket_by_token(string $token): ?array
+{
+    $stmt = db()->prepare('SELECT * FROM tickets WHERE token = :token LIMIT 1');
+    $stmt->execute(['token' => $token]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_ticket_messages(int $ticketId): array
+{
+    $stmt = db()->prepare('SELECT * FROM ticket_messages WHERE ticket_id = :id ORDER BY created_at ASC, id ASC');
+    $stmt->execute(['id' => $ticketId]);
+    return $stmt->fetchAll();
 }
