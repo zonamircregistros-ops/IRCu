@@ -15,6 +15,7 @@ require __DIR__ . '/includes/header.php';
   <div class="container">
     <h1>Salas y canales</h1>
     <p>Elegí un canal y entrá directo al webchat. Para ver la lista completa desde tu cliente usá <code>/list</code>.</p>
+    <p><a class="back-link" style="display:inline-block; margin:0;" href="/ranking.php">🏆 Ver ranking de salas</a></p>
   </div>
 </section>
 
@@ -48,7 +49,7 @@ require __DIR__ . '/includes/header.php';
             <?php endif; ?>
             <div class="channel-grid<?= $slug === 'adultos' ? ' age-gate-content' : '' ?>">
               <?php foreach ($grouped[$slug] as $channel): ?>
-                <a class="channel-card <?= $channel['is_nsfw'] ? 'is-nsfw' : '' ?>" href="<?= h(webchat_link($channel['name'])) ?>" target="_blank" rel="noopener">
+                <a class="channel-card <?= $channel['is_nsfw'] ? 'is-nsfw' : '' ?>" href="/ir.php?channel=<?= rawurlencode($channel['name']) ?>" target="_blank" rel="noopener">
                   <div class="channel-name">
                     #<?= h($channel['name']) ?>
                     <?php if ($channel['is_nsfw']): ?><span class="nsfw-tag">18+</span><?php endif; ?>

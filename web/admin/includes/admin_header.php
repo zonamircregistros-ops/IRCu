@@ -4,6 +4,11 @@ require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/notifications.php';
 require_login();
 
+/** @var array<int, string> $requiredRole */
+if (isset($requiredRole)) {
+    require_role($requiredRole);
+}
+
 $adminNotifications = get_admin_notifications();
 $notificationCount = array_sum(array_column($adminNotifications, 'count'));
 
@@ -12,27 +17,41 @@ $notificationCount = array_sum(array_column($adminNotifications, 'count'));
 $pageTitle ??= 'Panel';
 $activeAdminNav ??= '';
 
-$adminNavItems = [
-    'dashboard'           => ['href' => 'index.php',               'label' => 'Resumen'],
-    'salas'               => ['href' => 'salas.php',               'label' => 'Salas'],
-    'staff'                => ['href' => 'staff.php',              'label' => 'Staff'],
-    'news'                 => ['href' => 'news.php',               'label' => 'Noticias'],
-    'services'             => ['href' => 'services.php',           'label' => 'Servicios'],
-    'bnc_networks'         => ['href' => 'bnc_networks.php',       'label' => 'Redes BNC'],
-    'bnc_requests'         => ['href' => 'bnc_requests.php',       'label' => 'Solicitudes BNC'],
-    'gline_appeals'        => ['href' => 'gline_appeals.php',      'label' => 'Apelaciones G-Line'],
-    'ircop_applications'   => ['href' => 'ircop_applications.php', 'label' => 'Postulaciones IRCop'],
-    'tickets'              => ['href' => 'tickets.php',            'label' => 'Tickets'],
-    'testimonials'         => ['href' => 'testimonials.php',       'label' => 'Testimonios'],
-    'credits'              => ['href' => 'credits.php',            'label' => 'Créditos'],
-    'service_status'       => ['href' => 'service_status.php',     'label' => 'Estado del servicio'],
-    'analytics'            => ['href' => 'analytics.php',          'label' => 'Analítica'],
-    'data_requests'        => ['href' => 'data_requests.php',      'label' => 'Datos personales'],
-    'audit_log'            => ['href' => 'audit_log.php',          'label' => 'Auditoría'],
-    'errors'               => ['href' => 'errors.php',             'label' => 'Errores'],
-    'settings'             => ['href' => 'settings.php',           'label' => 'Ajustes del sitio'],
-    'account'              => ['href' => 'account.php',            'label' => 'Mi cuenta'],
+$allRoles = ['superadmin', 'moderador'];
+$onlySuperadmin = ['superadmin'];
+
+$adminNavItemsAll = [
+    'dashboard'           => ['href' => 'index.php',               'label' => 'Resumen',                'roles' => $allRoles],
+    'salas'               => ['href' => 'salas.php',               'label' => 'Salas',                   'roles' => $allRoles],
+    'staff'                => ['href' => 'staff.php',              'label' => 'Staff',                   'roles' => $allRoles],
+    'news'                 => ['href' => 'news.php',               'label' => 'Noticias',                'roles' => $allRoles],
+    'blog'                 => ['href' => 'blog.php',                'label' => 'Blog comunitario',       'roles' => $allRoles],
+    'forum'                => ['href' => 'forum.php',               'label' => 'Foro',                   'roles' => $allRoles],
+    'stories'               => ['href' => 'stories.php',             'label' => 'Historias',              'roles' => $allRoles],
+    'profiles'             => ['href' => 'profiles.php',             'label' => 'Perfiles',                'roles' => $allRoles],
+    'events'               => ['href' => 'events.php',               'label' => 'Eventos',                 'roles' => $allRoles],
+    'moderation'           => ['href' => 'moderation.php',           'label' => 'Moderación',              'roles' => $allRoles],
+    'services'             => ['href' => 'services.php',           'label' => 'Servicios',               'roles' => $allRoles],
+    'bnc_networks'         => ['href' => 'bnc_networks.php',       'label' => 'Redes BNC',               'roles' => $allRoles],
+    'bnc_requests'         => ['href' => 'bnc_requests.php',       'label' => 'Solicitudes BNC',         'roles' => $allRoles],
+    'gline_appeals'        => ['href' => 'gline_appeals.php',      'label' => 'Apelaciones G-Line',      'roles' => $allRoles],
+    'ircop_applications'   => ['href' => 'ircop_applications.php', 'label' => 'Postulaciones IRCop',     'roles' => $allRoles],
+    'collaboration'        => ['href' => 'collaboration.php',      'label' => 'Colaboración',            'roles' => $allRoles],
+    'tickets'              => ['href' => 'tickets.php',            'label' => 'Tickets',                 'roles' => $allRoles],
+    'testimonials'         => ['href' => 'testimonials.php',       'label' => 'Testimonios',             'roles' => $allRoles],
+    'credits'              => ['href' => 'credits.php',            'label' => 'Créditos',                'roles' => $allRoles],
+    'service_status'       => ['href' => 'service_status.php',     'label' => 'Estado del servicio',     'roles' => $allRoles],
+    'newsletter'           => ['href' => 'newsletter.php',         'label' => 'Newsletter',              'roles' => $onlySuperadmin],
+    'analytics'            => ['href' => 'analytics.php',          'label' => 'Analítica',               'roles' => $onlySuperadmin],
+    'data_requests'        => ['href' => 'data_requests.php',      'label' => 'Datos personales',        'roles' => $onlySuperadmin],
+    'admins'               => ['href' => 'admins.php',             'label' => 'Administradores',         'roles' => $onlySuperadmin],
+    'audit_log'            => ['href' => 'audit_log.php',          'label' => 'Auditoría',               'roles' => $onlySuperadmin],
+    'errors'               => ['href' => 'errors.php',             'label' => 'Errores',                 'roles' => $onlySuperadmin],
+    'settings'             => ['href' => 'settings.php',           'label' => 'Ajustes del sitio',       'roles' => $onlySuperadmin],
+    'account'              => ['href' => 'account.php',            'label' => 'Mi cuenta',               'roles' => $allRoles],
 ];
+
+$adminNavItems = array_filter($adminNavItemsAll, fn ($item) => in_array(admin_role(), $item['roles'], true));
 
 $flash = flash_get();
 ?>

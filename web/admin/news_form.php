@@ -152,9 +152,9 @@ require __DIR__ . '/includes/admin_header.php';
           <button type="button" data-command="formatBlock" data-value="BLOCKQUOTE" title="Cita">❝</button>
           <button type="button" data-command="insertUnorderedList" title="Lista">• Lista</button>
           <button type="button" data-command="insertOrderedList" title="Lista numerada">1. Lista</button>
-          <button type="button" data-command="createLink" title="Link">🔗</button>
-          <button type="button" data-command="insertImage" title="Imagen">🖼️</button>
-          <button type="button" data-command="removeFormat" title="Quitar formato">✕</button>
+          <button type="button" data-command="createLink" title="Link" aria-label="Insertar link">🔗</button>
+          <button type="button" data-command="insertImage" title="Imagen" aria-label="Insertar imagen">🖼️</button>
+          <button type="button" data-command="removeFormat" title="Quitar formato" aria-label="Quitar formato">✕</button>
         </div>
         <div class="wysiwyg-content" contenteditable="true"></div>
       </div>

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 $pageTitle = 'Solicitudes de datos personales';
 $activeAdminNav = 'data_requests';
+$requiredRole = ['superadmin'];
 require __DIR__ . '/includes/admin_header.php';
 
 $typeLabels = ['exportar' => 'Exportar', 'eliminar' => 'Eliminar'];

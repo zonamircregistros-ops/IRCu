@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS admins (
   username              VARCHAR(50)  NOT NULL UNIQUE,
   password_hash         VARCHAR(255) NOT NULL,
   email                 VARCHAR(160) NULL,
+  role                  ENUM('superadmin','moderador') NOT NULL DEFAULT 'superadmin',
   reset_token           VARCHAR(64)  NULL,
   reset_token_expires   DATETIME     NULL,
   created_at            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -78,6 +79,7 @@ CREATE TABLE IF NOT EXISTS channels (
   category    ENUM('general','regional','adultos','ayuda') NOT NULL DEFAULT 'general',
   description VARCHAR(160) NULL,
   is_nsfw     TINYINT(1)   NOT NULL DEFAULT 0,
+  click_count INT UNSIGNED NOT NULL DEFAULT 0,
   sort_order  SMALLINT     NOT NULL DEFAULT 0,
   is_active   TINYINT(1)   NOT NULL DEFAULT 1,
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -260,9 +262,13 @@ CREATE TABLE IF NOT EXISTS page_views (
   id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   path        VARCHAR(255) NOT NULL,
   referrer    VARCHAR(255) NULL,
+  utm_source    VARCHAR(100) NULL,
+  utm_medium    VARCHAR(100) NULL,
+  utm_campaign  VARCHAR(100) NULL,
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_path_time (path, created_at),
-  KEY idx_time (created_at)
+  KEY idx_time (created_at),
+  KEY idx_campaign (utm_campaign)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
@@ -308,4 +314,144 @@ CREATE TABLE IF NOT EXISTS service_status (
   sort_order    SMALLINT     NOT NULL DEFAULT 0,
   updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- service_status_history: snapshot histórico para el uptime de estado.php
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS service_status_history (
+  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  service_name  VARCHAR(60)  NOT NULL,
+  status        ENUM('operativo','degradado','no_operativo') NOT NULL,
+  created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_service_time (service_name, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- blog_posts: blog comunitario, moderado antes de publicarse
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS blog_posts (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title           VARCHAR(160) NOT NULL,
+  slug            VARCHAR(180) NOT NULL UNIQUE,
+  author_nick     VARCHAR(60)  NOT NULL,
+  author_email    VARCHAR(160) NOT NULL,
+  body            TEXT         NOT NULL,
+  status          ENUM('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
+  published_at    DATETIME     NULL,
+  email_verified      TINYINT(1)   NOT NULL DEFAULT 0,
+  email_verify_token  VARCHAR(64)  NULL,
+  created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_status (status, published_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- forum_topics / forum_replies: tablón asincrónico, moderado
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS forum_topics (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title           VARCHAR(160) NOT NULL,
+  author_nick     VARCHAR(60)  NOT NULL,
+  author_email    VARCHAR(160) NOT NULL,
+  body            TEXT         NOT NULL,
+  status          ENUM('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
+  is_locked       TINYINT(1)   NOT NULL DEFAULT 0,
+  email_verified      TINYINT(1)   NOT NULL DEFAULT 0,
+  email_verify_token  VARCHAR(64)  NULL,
+  created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_status (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS forum_replies (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  topic_id        INT UNSIGNED NOT NULL,
+  author_nick     VARCHAR(60)  NOT NULL,
+  author_email    VARCHAR(160) NOT NULL,
+  body            TEXT         NOT NULL,
+  status          ENUM('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
+  created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_topic_status (topic_id, status, created_at),
+  CONSTRAINT fk_forum_replies_topic FOREIGN KEY (topic_id) REFERENCES forum_topics (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- user_profiles: perfiles públicos opcionales, moderados
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_profiles (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nick            VARCHAR(60)  NOT NULL UNIQUE,
+  email           VARCHAR(160) NOT NULL,
+  bio             VARCHAR(280) NULL,
+  favorite_channels VARCHAR(255) NULL,
+  social_links    VARCHAR(255) NULL,
+  avatar_url      VARCHAR(255) NULL,
+  status          ENUM('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
+  email_verified      TINYINT(1)   NOT NULL DEFAULT 0,
+  email_verify_token  VARCHAR(64)  NULL,
+  created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- community_stories: historias largas de la comunidad, moderadas
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS community_stories (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title           VARCHAR(160) NOT NULL,
+  author_nick     VARCHAR(60)  NOT NULL,
+  author_email    VARCHAR(160) NOT NULL,
+  body            TEXT         NOT NULL,
+  status          ENUM('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
+  email_verified      TINYINT(1)   NOT NULL DEFAULT 0,
+  email_verify_token  VARCHAR(64)  NULL,
+  created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_status (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- events: calendario de eventos de la red
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS events (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title         VARCHAR(160) NOT NULL,
+  description   TEXT         NULL,
+  starts_at     DATETIME     NOT NULL,
+  ends_at       DATETIME     NULL,
+  is_active     TINYINT(1)   NOT NULL DEFAULT 1,
+  created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_active_start (is_active, starts_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- newsletter_subscribers: newsletter mensual (double opt-in)
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+  id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email               VARCHAR(160) NOT NULL UNIQUE,
+  confirmed           TINYINT(1)   NOT NULL DEFAULT 0,
+  confirm_token       VARCHAR(64)  NULL,
+  unsubscribe_token   VARCHAR(64)  NOT NULL,
+  created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_confirmed (confirmed)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- collaboration_applications: postulaciones para colaborar con la red
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS collaboration_applications (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  full_name       VARCHAR(120) NOT NULL,
+  email           VARCHAR(160) NOT NULL,
+  area            VARCHAR(80)  NOT NULL,
+  message         TEXT         NOT NULL,
+  status          ENUM('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
+  admin_notes     TEXT         NULL,
+  created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_status (status, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

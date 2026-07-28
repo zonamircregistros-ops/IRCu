@@ -2,9 +2,23 @@
 declare(strict_types=1);
 require_once __DIR__ . '/includes/functions.php';
 
-$pageTitle = 'Preguntas frecuentes';
+$lang = current_lang();
+
+$copy = $lang === 'en' ? [
+    'title' => 'Frequently asked questions',
+    'intro' => 'The basics of IRC and how ' . setting('site_name') . ' works, explained quickly.',
+    'not_found' => "Didn't find what you were looking for? Write to us at",
+    'or_ticket' => 'or open a ticket from',
+] : [
+    'title' => 'Preguntas frecuentes',
+    'intro' => 'Lo básico del IRC y de cómo funciona ' . setting('site_name') . ', explicado rápido.',
+    'not_found' => '¿No encontraste lo que buscabas? Escribinos a',
+    'or_ticket' => 'o abrí un ticket desde',
+];
+
+$pageTitle = $copy['title'];
 $activeNav = '';
-$pageDescription = 'Todo lo que necesitás saber sobre IRC y ' . setting('site_name') . '.';
+$pageDescription = $copy['intro'];
 
 $faqs = get_faq_items();
 
@@ -13,8 +27,8 @@ require __DIR__ . '/includes/header.php';
 
 <section class="page-banner">
   <div class="container">
-    <h1>Preguntas frecuentes</h1>
-    <p>Lo básico del IRC y de cómo funciona <?= h(setting('site_name')) ?>, explicado rápido.</p>
+    <h1><?= h($copy['title']) ?></h1>
+    <p><?= h($copy['intro']) ?></p>
   </div>
 </section>
 
@@ -30,9 +44,9 @@ require __DIR__ . '/includes/header.php';
     </div>
 
     <p class="rules-footnote">
-      ¿No encontraste lo que buscabas? Escribinos a
+      <?= h($copy['not_found']) ?>
       <a href="mailto:<?= h(setting('staff_email')) ?>"><?= h(setting('staff_email')) ?></a>
-      o abrí un ticket desde <a href="/gestiones.php">Gestiones</a>.
+      <?= h($copy['or_ticket']) ?> <a href="/gestiones.php">Gestiones</a>.
     </p>
   </div>
 </section>

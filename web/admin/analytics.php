@@ -2,6 +2,7 @@
 declare(strict_types=1);
 $pageTitle = 'Analítica';
 $activeAdminNav = 'analytics';
+$requiredRole = ['superadmin'];
 require __DIR__ . '/includes/admin_header.php';
 
 $totalViews = (int) db()->query('SELECT COUNT(*) FROM page_views')->fetchColumn();

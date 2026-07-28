@@ -2,6 +2,7 @@
 declare(strict_types=1);
 $pageTitle = 'Errores';
 $activeAdminNav = 'errors';
+$requiredRole = ['superadmin'];
 require __DIR__ . '/includes/admin_header.php';
 
 $perPage = 30;

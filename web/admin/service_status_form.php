@@ -59,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $params['id'] = $id;
             $stmt->execute($params);
+            audit_log('Estado de servicio actualizado', $item['service_name'] . ' -> ' . $item['status']);
             flash_set('Servicio actualizado.');
         } else {
             $stmt = db()->prepare(
@@ -66,8 +67,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  VALUES (:service_name, :url, :status, :note, :sort_order)'
             );
             $stmt->execute($params);
+            audit_log('Estado de servicio creado', $item['service_name']);
             flash_set('Servicio creado.');
         }
+        snapshot_service_status();
         header('Location: service_status.php');
         exit;
     }

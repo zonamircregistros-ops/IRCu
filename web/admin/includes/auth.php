@@ -18,6 +18,30 @@ function require_login(): void
     }
 }
 
+function admin_role(): string
+{
+    return $_SESSION['admin_role'] ?? 'moderador';
+}
+
+function is_superadmin(): bool
+{
+    return admin_role() === 'superadmin';
+}
+
+/**
+ * Corta el acceso a una página si el rol del admin logueado no está en la
+ * lista permitida. Llamar siempre después de require_login().
+ *
+ * @param array<int, string> $allowedRoles
+ */
+function require_role(array $allowedRoles): void
+{
+    if (!in_array(admin_role(), $allowedRoles, true)) {
+        http_response_code(403);
+        die('No tenés permiso para acceder a esta sección del panel.');
+    }
+}
+
 function csrf_token(): string
 {
     if (empty($_SESSION['csrf'])) {

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/includes/auth.php';
 require_login();
+require_role(['superadmin']);
 
 $fieldGroups = [
     'Sitio' => [
@@ -37,6 +38,12 @@ $fieldGroups = [
         'donation_crypto_address' => 'Dirección de wallet',
         'donation_goal_amount'    => 'Meta mensual (USD, 0 para ocultar la barra)',
         'donation_goal_raised'    => 'Recaudado este mes (USD, actualización manual)',
+    ],
+    'Otros' => [
+        'encuestas_url'       => 'URL de encuestas (LimeSurvey externo)',
+        'blocked_domains'     => 'Dominios bloqueados en formularios (separados por coma)',
+        'maintenance_mode'    => 'Modo mantenimiento',
+        'maintenance_message' => 'Mensaje del banner de mantenimiento',
     ],
 ];
 
@@ -112,6 +119,13 @@ require __DIR__ . '/includes/admin_header.php';
                 <option value="operativo" <?= ($current[$key] ?? '') === 'operativo' ? 'selected' : '' ?>>Operativo</option>
                 <option value="no_operativo" <?= ($current[$key] ?? '') === 'no_operativo' ? 'selected' : '' ?>>No operativo</option>
               </select>
+            <?php elseif ($key === 'maintenance_mode'): ?>
+              <select id="<?= h($key) ?>" name="<?= h($key) ?>">
+                <option value="0" <?= ($current[$key] ?? '0') === '0' ? 'selected' : '' ?>>Apagado</option>
+                <option value="1" <?= ($current[$key] ?? '0') === '1' ? 'selected' : '' ?>>Encendido (muestra el banner en todo el sitio)</option>
+              </select>
+            <?php elseif ($key === 'maintenance_message'): ?>
+              <textarea id="<?= h($key) ?>" name="<?= h($key) ?>"><?= h($current[$key] ?? '') ?></textarea>
             <?php else: ?>
               <input type="text" id="<?= h($key) ?>" name="<?= h($key) ?>" value="<?= h($current[$key] ?? '') ?>">
             <?php endif; ?>

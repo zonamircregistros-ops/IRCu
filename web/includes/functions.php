@@ -51,6 +51,10 @@ function get_settings(): array
         'donation_crypto_address' => '',
         'donation_goal_amount' => '0',
         'donation_goal_raised' => '0',
+        'encuestas_url' => 'https://encuestas.chateanos.com',
+        'maintenance_mode' => '0',
+        'maintenance_message' => 'Estamos hicimos mantenimiento programado. Volvemos en breve.',
+        'blocked_domains' => '',
     ];
 
     try {
@@ -316,6 +320,21 @@ function get_service_statuses(): array
  */
 function get_faq_items(): array
 {
+    if (current_lang() === 'en') {
+        return [
+            ['question' => 'What is IRC?', 'answer' => 'IRC (Internet Relay Chat) is a real-time chat protocol that has existed since 1988. It works through rooms called channels (starting with #) where many people can talk at once, plus private messages between users.'],
+            ['question' => 'What is a channel?', 'answer' => 'A channel is a group chat room, identified by a name starting with #, for example #Chateanos. Each channel can have its own rules, moderators and topic.'],
+            ['question' => 'What is a nick?', 'answer' => "It's the nickname you're identified by on the network. You can use any one that's free; if you want to make sure nobody else uses it, you can register it with NickServ."],
+            ['question' => 'What are NickServ and ChanServ?', 'answer' => "They're the network's services: NickServ lets you register and protect your nick, and ChanServ does the same for channels (founder, moderators, auto modes, etc). On Chateanos these services are built directly into Natasha IRCd."],
+            ['question' => 'What is an IRCop?', 'answer' => "An IRCop (IRC Operator) is part of the network's technical staff: they have special permissions to moderate, apply sanctions and keep the infrastructure running. You can see who they are in the Staff section, or apply yourself from Support."],
+            ['question' => 'What is a bouncer (BNC)?', 'answer' => 'A service that keeps your IRC connection active all the time, even if you close your client or lose internet. Our bouncer is called Natasha; you can request it for free from /natasha.'],
+            ['question' => 'Do I need to install anything to chat?', 'answer' => 'No. You can join directly from your browser with the webchat, no registration or installation needed. If you prefer a desktop client, Connect has the server details for mIRC, HexChat, Irssi, etc.'],
+            ['question' => "What is TLS/SSL and why should I use it?", 'answer' => "It's encryption for your connection: it stops anyone in the middle from reading what you send. We always recommend using the TLS port when connecting with an IRC client."],
+            ['question' => 'What is a G-Line?', 'answer' => 'A network ban applied by IP or IP range, usually for breaking the rules. If you think you were banned by mistake, you can appeal from Support.'],
+            ['question' => 'What is Natasha IRCd?', 'answer' => 'The software that runs the whole network: an IRCd written in Go, with services (NickServ/ChanServ) and a bouncer built into a single daemon, with 97.5% IRCv3 support. You can read its full story in the About section.'],
+        ];
+    }
+
     return [
         ['question' => '¿Qué es el IRC?', 'answer' => 'IRC (Internet Relay Chat) es un protocolo de chat en tiempo real que existe desde 1988. Funciona por salas llamadas canales (que empiezan con #) donde mucha gente puede charlar a la vez, además de mensajes privados entre usuarios.'],
         ['question' => '¿Qué es un canal?', 'answer' => 'Un canal es una sala de chat grupal, identificada con un nombre que arranca con #, por ejemplo #Chateanos. Cada canal puede tener sus propias reglas, moderadores y tema de charla.'],
@@ -340,8 +359,19 @@ function track_page_view(string $path): void
         if ($referrer !== null) {
             $referrer = substr($referrer, 0, 255);
         }
-        db()->prepare('INSERT INTO page_views (path, referrer) VALUES (:path, :referrer)')
-            ->execute(['path' => substr($path, 0, 255), 'referrer' => $referrer]);
+        $utmSource = isset($_GET['utm_source']) ? substr((string) $_GET['utm_source'], 0, 100) : null;
+        $utmMedium = isset($_GET['utm_medium']) ? substr((string) $_GET['utm_medium'], 0, 100) : null;
+        $utmCampaign = isset($_GET['utm_campaign']) ? substr((string) $_GET['utm_campaign'], 0, 100) : null;
+        db()->prepare(
+            'INSERT INTO page_views (path, referrer, utm_source, utm_medium, utm_campaign)
+             VALUES (:path, :referrer, :utm_source, :utm_medium, :utm_campaign)'
+        )->execute([
+            'path' => substr($path, 0, 255),
+            'referrer' => $referrer,
+            'utm_source' => $utmSource,
+            'utm_medium' => $utmMedium,
+            'utm_campaign' => $utmCampaign,
+        ]);
     } catch (PDOException $e) {
         // La analítica nunca debe romper la carga de la página.
     }
@@ -465,9 +495,414 @@ function handle_uploaded_image(string $fieldName, string $subdir): ?string
     }
 
     $filename = bin2hex(random_bytes(12)) . '.' . $allowed[$mime];
-    if (!move_uploaded_file($file['tmp_name'], $destDir . '/' . $filename)) {
+    $destPath = $destDir . '/' . $filename;
+    if (!move_uploaded_file($file['tmp_name'], $destPath)) {
         throw new \RuntimeException('No se pudo guardar la imagen subida.');
     }
 
+    // Convertimos a WebP para pesar menos, salvo GIF (para no perder animaciones).
+    if ($mime !== 'image/gif' && function_exists('imagewebp')) {
+        $image = match ($mime) {
+            'image/jpeg' => @imagecreatefromjpeg($destPath),
+            'image/png' => @imagecreatefrompng($destPath),
+            'image/webp' => @imagecreatefromwebp($destPath),
+            default => false,
+        };
+        if ($image !== false) {
+            $webpFilename = pathinfo($filename, PATHINFO_FILENAME) . '.webp';
+            $webpPath = $destDir . '/' . $webpFilename;
+            if (imagewebp($image, $webpPath, 82)) {
+                imagedestroy($image);
+                if ($webpPath !== $destPath) {
+                    unlink($destPath);
+                }
+                $filename = $webpFilename;
+            } else {
+                imagedestroy($image);
+            }
+        }
+    }
+
     return '/assets/uploads/' . $subdir . '/' . $filename;
+}
+
+/**
+ * Suma un click al contador de una sala (ranking de canales por actividad).
+ */
+function track_channel_click(int $channelId): void
+{
+    try {
+        db()->prepare('UPDATE channels SET click_count = click_count + 1 WHERE id = :id')
+            ->execute(['id' => $channelId]);
+    } catch (PDOException $e) {
+        // No debe romper la redirección al webchat.
+    }
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_channel_ranking(int $limit = 10): array
+{
+    try {
+        $stmt = db()->prepare(
+            'SELECT name, category, click_count FROM channels
+             WHERE is_active = 1 ORDER BY click_count DESC, name LIMIT :limit'
+        );
+        $stmt->bindValue('limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * Guarda una foto del estado actual de cada servicio (para el histórico de
+ * uptime). Se llama cada vez que se actualiza service_status desde el panel.
+ */
+function snapshot_service_status(): void
+{
+    try {
+        $rows = db()->query('SELECT service_name, status FROM service_status')->fetchAll();
+        $stmt = db()->prepare('INSERT INTO service_status_history (service_name, status) VALUES (:name, :status)');
+        foreach ($rows as $row) {
+            $stmt->execute(['name' => $row['service_name'], 'status' => $row['status']]);
+        }
+    } catch (PDOException $e) {
+        // No debe romper el guardado del estado.
+    }
+}
+
+/**
+ * % de snapshots en estado "operativo" en los últimos $days días.
+ */
+function get_uptime_percent(string $serviceName, int $days = 30): ?float
+{
+    try {
+        $stmt = db()->prepare(
+            'SELECT
+               SUM(status = "operativo") AS ok_count,
+               COUNT(*) AS total
+             FROM service_status_history
+             WHERE service_name = :name AND created_at >= :since'
+        );
+        $stmt->execute(['name' => $serviceName, 'since' => date('Y-m-d H:i:s', time() - $days * 86400)]);
+        $row = $stmt->fetch();
+        if (!$row || (int) $row['total'] === 0) {
+            return null;
+        }
+        return round(((int) $row['ok_count'] / (int) $row['total']) * 100, 1);
+    } catch (PDOException $e) {
+        return null;
+    }
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_blog_posts(bool $approvedOnly = true, ?int $limit = null): array
+{
+    $sql = 'SELECT * FROM blog_posts';
+    if ($approvedOnly) {
+        $sql .= ' WHERE status = "aprobado" AND published_at <= NOW()';
+    }
+    $sql .= ' ORDER BY COALESCE(published_at, created_at) DESC';
+    if ($limit !== null) {
+        $sql .= ' LIMIT ' . (int) $limit;
+    }
+    try {
+        return db()->query($sql)->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+function get_blog_post_by_slug(string $slug): ?array
+{
+    try {
+        $stmt = db()->prepare('SELECT * FROM blog_posts WHERE slug = :slug AND status = "aprobado" AND published_at <= NOW() LIMIT 1');
+        $stmt->execute(['slug' => $slug]);
+        return $stmt->fetch() ?: null;
+    } catch (PDOException $e) {
+        return null;
+    }
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_forum_topics(bool $approvedOnly = true): array
+{
+    $sql = 'SELECT ft.*, (SELECT COUNT(*) FROM forum_replies fr WHERE fr.topic_id = ft.id AND fr.status = "aprobado") AS reply_count
+            FROM forum_topics ft';
+    if ($approvedOnly) {
+        $sql .= ' WHERE ft.status = "aprobado"';
+    }
+    $sql .= ' ORDER BY ft.created_at DESC';
+    try {
+        return db()->query($sql)->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+function get_forum_topic(int $id, bool $approvedOnly = true): ?array
+{
+    $sql = 'SELECT * FROM forum_topics WHERE id = :id';
+    if ($approvedOnly) {
+        $sql .= ' AND status = "aprobado"';
+    }
+    try {
+        $stmt = db()->prepare($sql);
+        $stmt->execute(['id' => $id]);
+        return $stmt->fetch() ?: null;
+    } catch (PDOException $e) {
+        return null;
+    }
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_forum_replies(int $topicId, bool $approvedOnly = true): array
+{
+    $sql = 'SELECT * FROM forum_replies WHERE topic_id = :id';
+    if ($approvedOnly) {
+        $sql .= ' AND status = "aprobado"';
+    }
+    $sql .= ' ORDER BY created_at ASC';
+    try {
+        $stmt = db()->prepare($sql);
+        $stmt->execute(['id' => $topicId]);
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_profiles(bool $approvedOnly = true): array
+{
+    $sql = 'SELECT * FROM user_profiles';
+    if ($approvedOnly) {
+        $sql .= ' WHERE status = "aprobado"';
+    }
+    $sql .= ' ORDER BY nick';
+    try {
+        return db()->query($sql)->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_stories(bool $approvedOnly = true): array
+{
+    $sql = 'SELECT * FROM community_stories';
+    if ($approvedOnly) {
+        $sql .= ' WHERE status = "aprobado"';
+    }
+    $sql .= ' ORDER BY created_at DESC';
+    try {
+        return db()->query($sql)->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_upcoming_events(): array
+{
+    try {
+        return db()->query(
+            'SELECT * FROM events WHERE is_active = 1 AND (ends_at >= NOW() OR (ends_at IS NULL AND starts_at >= NOW()))
+             ORDER BY starts_at ASC'
+        )->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_past_events(int $limit = 10): array
+{
+    try {
+        $stmt = db()->prepare(
+            'SELECT * FROM events WHERE is_active = 1 AND COALESCE(ends_at, starts_at) < NOW()
+             ORDER BY starts_at DESC LIMIT :limit'
+        );
+        $stmt->bindValue('limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+function is_maintenance_mode(): bool
+{
+    return setting('maintenance_mode') === '1';
+}
+
+/**
+ * Extrae URLs (http/https) de un texto libre enviado por un formulario público.
+ *
+ * @return array<int, string>
+ */
+function extract_urls(string $text): array
+{
+    preg_match_all('#https?://[^\s<>"\']+#i', $text, $matches);
+    return $matches[0] ?? [];
+}
+
+/**
+ * Filtro anti-phishing simple: rechaza texto que contenga links a dominios
+ * de la lista negra que mantiene el admin (ajuste "blocked_domains",
+ * separado por comas). No usa ningún servicio externo.
+ */
+function contains_blocked_domain(string $text): bool
+{
+    $blocklist = array_filter(array_map('trim', explode(',', setting('blocked_domains'))));
+    if (empty($blocklist)) {
+        return false;
+    }
+
+    foreach (extract_urls($text) as $url) {
+        $host = parse_url($url, PHP_URL_HOST);
+        if ($host === null) {
+            continue;
+        }
+        $host = strtolower($host);
+        foreach ($blocklist as $blocked) {
+            $blocked = strtolower($blocked);
+            if ($host === $blocked || str_ends_with($host, '.' . $blocked)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Vistas recientes de una ruta (para el widget "N personas vieron esto"),
+ * aproximado a partir de page_views — sin cookies ni IDs de sesión.
+ */
+function recent_view_count(string $path, int $minutes = 5): int
+{
+    try {
+        $stmt = db()->prepare(
+            'SELECT COUNT(*) FROM page_views WHERE path = :path AND created_at >= :since'
+        );
+        $stmt->execute(['path' => $path, 'since' => date('Y-m-d H:i:s', time() - $minutes * 60)]);
+        return (int) $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        return 0;
+    }
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function get_campaign_summary(int $days = 30): array
+{
+    try {
+        $stmt = db()->prepare(
+            'SELECT utm_source, utm_medium, utm_campaign, COUNT(*) AS visits
+             FROM page_views
+             WHERE utm_campaign IS NOT NULL AND created_at >= :since
+             GROUP BY utm_source, utm_medium, utm_campaign
+             ORDER BY visits DESC'
+        );
+        $stmt->execute(['since' => date('Y-m-d H:i:s', time() - $days * 86400)]);
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * Idioma del sitio: query string ?lang= tiene prioridad y se recuerda en
+ * cookie por 1 año; si no hay nada, cae a español. Solo 'es'/'en' válidos.
+ */
+function current_lang(): string
+{
+    static $lang = null;
+    if ($lang !== null) {
+        return $lang;
+    }
+
+    $requested = $_GET['lang'] ?? null;
+    if (in_array($requested, ['es', 'en'], true)) {
+        $lang = $requested;
+        if (!headers_sent()) {
+            setcookie('chateanos_lang', $lang, time() + 31536000, '/');
+        }
+        return $lang;
+    }
+
+    $cookie = $_COOKIE['chateanos_lang'] ?? null;
+    $lang = in_array($cookie, ['es', 'en'], true) ? $cookie : 'es';
+    return $lang;
+}
+
+/**
+ * Diccionario de textos compartidos del sitio (nav, footer, UI común).
+ * El contenido específico de cada página vive en la página misma.
+ */
+function t(string $key): string
+{
+    static $strings = [
+        'nav.inicio' => ['es' => 'Inicio', 'en' => 'Home'],
+        'nav.salas' => ['es' => 'Salas', 'en' => 'Rooms'],
+        'nav.servicios' => ['es' => 'Servicios', 'en' => 'Services'],
+        'nav.staff' => ['es' => 'Staff', 'en' => 'Staff'],
+        'nav.noticias' => ['es' => 'Noticias', 'en' => 'News'],
+        'nav.gestiones' => ['es' => 'Gestiones', 'en' => 'Support'],
+        'nav.conectar' => ['es' => 'Conectar', 'en' => 'Connect'],
+        'nav.webchat' => ['es' => 'Entrar al webchat', 'en' => 'Enter webchat'],
+        'nav.buscar' => ['es' => 'Buscar en el sitio', 'en' => 'Search the site'],
+        'footer.red' => ['es' => 'Red', 'en' => 'Network'],
+        'footer.historia' => ['es' => 'Nuestra historia', 'en' => 'Our story'],
+        'footer.ranking' => ['es' => 'Ranking de salas', 'en' => 'Room ranking'],
+        'footer.comunidad' => ['es' => 'Comunidad', 'en' => 'Community'],
+        'footer.blog' => ['es' => 'Blog comunitario', 'en' => 'Community blog'],
+        'footer.foro' => ['es' => 'Foro', 'en' => 'Forum'],
+        'footer.historias' => ['es' => 'Historias', 'en' => 'Stories'],
+        'footer.perfiles' => ['es' => 'Perfiles', 'en' => 'Profiles'],
+        'footer.eventos' => ['es' => 'Eventos', 'en' => 'Events'],
+        'footer.encuestas' => ['es' => 'Encuestas', 'en' => 'Surveys'],
+        'footer.gestiones' => ['es' => 'Gestiones', 'en' => 'Support'],
+        'footer.normas' => ['es' => 'Normas', 'en' => 'Rules'],
+        'footer.faq' => ['es' => 'Preguntas frecuentes', 'en' => 'FAQ'],
+        'footer.colaborar' => ['es' => 'Colaborar', 'en' => 'Volunteer'],
+        'footer.contacto' => ['es' => 'Contacto', 'en' => 'Contact'],
+        'footer.acceso' => ['es' => 'Acceso', 'en' => 'Access'],
+        'footer.clientes' => ['es' => 'Comparar clientes IRC', 'en' => 'Compare IRC clients'],
+        'footer.natasha' => ['es' => 'Natasha BNC', 'en' => 'Natasha BNC'],
+        'footer.estado' => ['es' => 'Estado del servicio', 'en' => 'Service status'],
+        'footer.mas' => ['es' => 'Más', 'en' => 'More'],
+        'footer.creditos' => ['es' => 'Créditos', 'en' => 'Credits'],
+        'footer.donar' => ['es' => 'Donar', 'en' => 'Donate'],
+        'footer.primeros_pasos' => ['es' => 'Primeros pasos', 'en' => 'Getting started'],
+        'footer.privacidad' => ['es' => 'Privacidad', 'en' => 'Privacy'],
+        'footer.terminos' => ['es' => 'Términos', 'en' => 'Terms'],
+        'footer.mis_datos' => ['es' => 'Mis datos', 'en' => 'My data'],
+        'footer.reportar_abuso' => ['es' => 'Reportar abuso', 'en' => 'Report abuse'],
+        'footer.newsletter_label' => ['es' => 'Recibí las novedades por email', 'en' => 'Get updates by email'],
+        'footer.newsletter_btn' => ['es' => 'Sumarme', 'en' => 'Subscribe'],
+        'footer.rights' => ['es' => 'Todos los derechos reservados.', 'en' => 'All rights reserved.'],
+    ];
+
+    $lang = current_lang();
+    return $strings[$key][$lang] ?? $strings[$key]['es'] ?? $key;
 }

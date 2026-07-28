@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim((string)($_POST['username'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
 
-    $stmt = db()->prepare('SELECT id, username, password_hash FROM admins WHERE username = :username LIMIT 1');
+    $stmt = db()->prepare('SELECT id, username, password_hash, role FROM admins WHERE username = :username LIMIT 1');
     $stmt->execute(['username' => $username]);
     $admin = $stmt->fetch();
 
@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         session_regenerate_id(true);
         $_SESSION['admin_id'] = $admin['id'];
         $_SESSION['admin_user'] = $admin['username'];
+        $_SESSION['admin_role'] = $admin['role'];
         audit_log('Inicio de sesión');
         header('Location: index.php');
         exit;

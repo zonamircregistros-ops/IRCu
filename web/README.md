@@ -61,6 +61,21 @@ web/
                                 (derecho al olvido)
   legal-abuso.php                reporte de abuso/contenido ilegal (canal
                                 distinto del soporte general)
+  ranking.php                    ranking de salas por clics (vía /ir.php)
+  blog.php, blog-post.php, blog-enviar.php   blog comunitario, moderado
+  foro.php, foro-nuevo.php, foro-tema.php    tablón/foro, moderado
+  perfiles.php, perfil-crear.php             perfiles públicos, moderados
+  historias-comunidad.php, historia-ver.php,
+  historia-enviar.php                        historias largas, moderadas
+  eventos.php                    calendario de eventos (próximos/pasados)
+  encuestas.php                  landing que enlaza a LimeSurvey externo
+  colaborar.php                  postulación para colaborar con la red
+  clientes.php                   comparador de clientes IRC
+  primeros-pasos.php             checklist de onboarding (localStorage)
+  newsletter-suscribir.php, newsletter-confirmar.php,
+  newsletter-baja.php, newsletter-gracias.php   newsletter (double opt-in)
+  vistas-recientes.php           JSON del widget "vistas recientes"
+  health.php                     healthcheck JSON para monitoreo externo
   404.php                       página de error 404 personalizada
   sitemap.php, robots.txt       SEO: mapa del sitio dinámico y robots.txt
   .htaccess                     ErrorDocument 404, cabeceras de seguridad
@@ -70,9 +85,9 @@ web/
                   header/footer, radio_player.php y cookie_banner.php
   admin/          panel de administración (login requerido), incluye
                   forgot_password.php / reset_password.php (recuperación
-                  sin sesión)
+                  sin sesión) y admins.php (gestión de cuentas y roles)
   css/, js/       estilos y JS del sitio público (radio, editor WYSIWYG,
-                  age-gate, instalar app, compartir)
+                  age-gate, instalar app, compartir, tour de onboarding)
   assets/         favicons (PNG/SVG), og-image.png, site.webmanifest,
                   uploads/ (imágenes subidas desde el panel, no versionadas)
 config.example.php   plantilla de configuración (config.php NO se versiona)
@@ -195,3 +210,99 @@ buscador interno y una página 404 propia.
 - **Meta de donación**: barra de progreso opcional en `/donaciones.php`
   (meta y recaudado se cargan a mano desde Ajustes del sitio; se oculta
   si la meta es 0).
+
+### Contenido generado por usuarios (moderado)
+
+Cuatro secciones nuevas permiten que cualquiera participe sin necesidad de
+una cuenta de usuario en el sitio (no hay sistema de login público): se
+manda con nick + email + un captcha, y **queda oculto hasta que un admin
+lo aprueba** desde el panel. Todas comparten el mismo patrón de
+verificación de email, honeypot, rate limiting y filtro anti-phishing que
+el resto de los formularios públicos.
+
+- **Blog comunitario** (`/blog.php`, envíos en `/blog-enviar.php`):
+  artículos de texto plano (sin HTML) de al menos 200 caracteres.
+- **Foro** (`/foro.php`): temas y respuestas; el staff puede además
+  cerrar/reabrir un tema desde `/admin/forum_topic_view.php`.
+- **Perfiles públicos** (`/perfiles.php`, alta en `/perfil-crear.php`):
+  bio, salas favoritas, redes y avatar opcional (subido o URL). Volver a
+  enviar el mismo nick actualiza el perfil existente y lo vuelve a mandar
+  a moderación.
+- **Historias de la comunidad** (`/historias-comunidad.php`): relatos
+  largos (mínimo 300 caracteres), a diferencia de las citas cortas de
+  Testimonios.
+
+`/admin/moderation.php` centraliza todo lo pendiente de las cuatro
+secciones en una sola vista; cada sección también tiene su propio
+listado en el panel (Blog, Foro, Historias, Perfiles) con aprobar/
+rechazar/eliminar fila por fila.
+
+### Roles y permisos del panel
+
+Los administradores tienen un rol: **superadmin** (acceso total) o
+**moderador** (todo excepto Ajustes del sitio, Administradores,
+Auditoría, Errores, Analítica, Datos personales y Newsletter — las
+secciones más sensibles). `/admin/admins.php` (solo superadmin) crea y
+edita cuentas de admin y les asigna rol; el propio admin no puede
+eliminarse a sí mismo. El menú lateral y los accesos rápidos del
+resumen se ajustan automáticamente según el rol.
+
+### Otras secciones nuevas
+
+- **Ranking de salas** (`/ranking.php`): cuenta clics reales al webchat
+  por sala (vía el redirector `/ir.php`), sin cookies ni tracking de
+  terceros.
+- **Uptime histórico**: cada vez que se guarda el Estado del servicio se
+  guarda una foto en `service_status_history`; `/estado.php` muestra el
+  % de uptime de cada servicio en los últimos 30 días.
+- **Eventos** (`/eventos.php`): calendario simple de próximos/pasados,
+  editable desde `/admin/events.php`.
+- **Encuestas** (`/encuestas.php`): landing que enlaza a una instancia
+  externa de LimeSurvey (`encuestas_url` en Ajustes del sitio), en vez de
+  reinventar un sistema de encuestas propio.
+- **Colaborar** (`/colaborar.php`): postulaciones para sumarse al equipo
+  (moderación, desarrollo, radio, comunidad), revisadas en
+  `/admin/collaboration.php`.
+- **Newsletter** (double opt-in): suscripción desde el footer de
+  cualquier página, confirmación por email, baja con un clic
+  (`newsletter-baja.php`). `/admin/newsletter.php` (solo superadmin)
+  redacta y manda el newsletter a mano a los suscriptores confirmados.
+- **Comparador de clientes IRC** (`/clientes.php`) y **Primeros pasos**
+  (`/primeros-pasos.php`, checklist con progreso en localStorage).
+- **Filtro anti-phishing**: los formularios públicos con texto libre
+  (blog, foro, perfiles, historias) rechazan envíos con links a dominios
+  de una lista negra que mantiene el admin (ajuste `blocked_domains`).
+  Sin ningún servicio externo de reputación de URLs.
+- **Healthcheck** (`/health.php`): JSON con el estado de la conexión a
+  la base de datos, pensado para un monitor externo de uptime.
+- **Conversión automática a WebP**: toda imagen subida (avatares,
+  portadas de noticias) se convierte a WebP al vuelo (salvo GIF, para no
+  perder animaciones), para pesar menos.
+- **Modo mantenimiento**: un ajuste (`maintenance_mode`) muestra un
+  banner en todo el sitio público con un mensaje editable, sin sacar el
+  sitio de línea ni afectar al panel de admin.
+- **Modo lectura** en las noticias (tipografía más grande, columna más
+  angosta) y **tour guiado** de bienvenida en el home (una vez por
+  navegador), además de un widget de "vistas recientes" (aproximado,
+  sin cookies, a partir de la analítica propia).
+- **Auditoría con búsqueda**: `/admin/audit_log.php` permite filtrar por
+  admin, acción o entidad; se registran también las creaciones/ediciones
+  de noticias, salas, staff, ajustes, eventos, etc., no solo los borrados.
+
+### Internacionalización (base + FAQ)
+
+El sitio tiene una infraestructura de idioma (`current_lang()` / `t()`
+en `functions.php`): un selector ES/EN en el header persiste el idioma
+en una cookie de un año. La navegación, el pie de página y la página de
+**Preguntas frecuentes** están completamente traducidos como ejemplo;
+el resto del contenido (noticias, historia de la red, etc.) sigue en
+español — traducir cada página de contenido es trabajo aparte, pendiente
+a futuro, pero la base para hacerlo ya está lista.
+
+### Accesibilidad
+
+Link para "saltar al contenido" (visible al tabular), estados de foco
+visibles en todo el sitio (`:focus-visible`), `aria-label` en botones de
+solo ícono (buscador, radio, editor WYSIWYG, cambio de idioma, menú
+hamburguesa) y jerarquía de encabezados consistente. Es una primera
+pasada real, no una auditoría exhaustiva de WCAG.

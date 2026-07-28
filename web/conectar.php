@@ -13,6 +13,7 @@ require __DIR__ . '/includes/header.php';
   <div class="container">
     <h1>Cómo conectarte</h1>
     <p>Elegí el camino que más te guste. Los dos te llevan al mismo lugar.</p>
+    <p><a class="back-link" style="display:inline-block; margin:0;" href="/clientes.php">🔍 Comparar clientes IRC</a></p>
   </div>
 </section>
 

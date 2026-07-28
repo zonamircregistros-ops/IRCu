@@ -17,17 +17,20 @@ $ogImageUrl = 'https://chateanos.com/assets/og-image.png';
 track_page_view(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
 
 $navItems = [
-    'inicio'     => ['href' => '/index.php',     'label' => 'Inicio'],
-    'salas'      => ['href' => '/salas.php',     'label' => 'Salas'],
-    'servicios'  => ['href' => '/servicios.php', 'label' => 'Servicios'],
-    'staff'      => ['href' => '/staff.php',     'label' => 'Staff'],
-    'noticias'   => ['href' => '/noticias.php',  'label' => 'Noticias'],
-    'gestiones'  => ['href' => '/gestiones.php', 'label' => 'Gestiones'],
-    'conectar'   => ['href' => '/conectar.php',  'label' => 'Conectar'],
+    'inicio'     => ['href' => '/index.php',     'label' => t('nav.inicio')],
+    'salas'      => ['href' => '/salas.php',     'label' => t('nav.salas')],
+    'servicios'  => ['href' => '/servicios.php', 'label' => t('nav.servicios')],
+    'staff'      => ['href' => '/staff.php',     'label' => t('nav.staff')],
+    'noticias'   => ['href' => '/noticias.php',  'label' => t('nav.noticias')],
+    'gestiones'  => ['href' => '/gestiones.php', 'label' => t('nav.gestiones')],
+    'conectar'   => ['href' => '/conectar.php',  'label' => t('nav.conectar')],
 ];
+
+$otherLang = current_lang() === 'es' ? 'en' : 'es';
+$langSwitchPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') . '?lang=' . $otherLang;
 ?>
 <!DOCTYPE html>
-<html lang="es">
+<html lang="<?= h(current_lang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -67,11 +70,17 @@ $navItems = [
 </head>
 <body>
 
+<a class="skip-link" href="#main-content">Saltar al contenido</a>
+
 <div class="bg-decor" aria-hidden="true">
   <div class="blob blob-1"></div>
   <div class="blob blob-2"></div>
   <div class="grid-overlay"></div>
 </div>
+
+<?php if (is_maintenance_mode()): ?>
+  <div class="maintenance-banner">🛠️ <?= h(setting('maintenance_message')) ?></div>
+<?php endif; ?>
 
 <header class="site-header" id="top">
   <div class="container header-inner">
@@ -87,9 +96,10 @@ $navItems = [
     </nav>
 
     <div class="header-actions">
-      <a class="search-icon-btn" href="/buscar.php" aria-label="Buscar en el sitio">🔎</a>
+      <a class="lang-switch" href="<?= h($langSwitchPath) ?>" aria-label="<?= $otherLang === 'en' ? 'Switch to English' : 'Cambiar a español' ?>"><?= h(strtoupper($otherLang)) ?></a>
+      <a class="search-icon-btn" href="/buscar.php" aria-label="<?= h(t('nav.buscar')) ?>">🔎</a>
       <button class="btn btn-ghost btn-sm" id="pwa-install-btn" type="button" hidden>📲 Instalar app</button>
-      <a class="btn btn-primary btn-sm" href="<?= h(webchat_link()) ?>" target="_blank" rel="noopener">Entrar al webchat</a>
+      <a class="btn btn-primary btn-sm" href="<?= h(webchat_link()) ?>" target="_blank" rel="noopener"><?= h(t('nav.webchat')) ?></a>
       <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menú" aria-expanded="false">
         <span></span><span></span><span></span>
       </button>
@@ -97,4 +107,4 @@ $navItems = [
   </div>
 </header>
 
-<main>
+<main id="main-content">

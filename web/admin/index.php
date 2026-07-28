@@ -69,7 +69,9 @@ $openTickets = (int) db()->query("SELECT COUNT(*) FROM tickets WHERE status = 'a
     <a class="btn btn-ghost" href="news_form.php">+ Nueva noticia</a>
     <a class="btn btn-ghost" href="bnc_requests.php">Ver solicitudes BNC</a>
     <a class="btn btn-ghost" href="tickets.php">Ver tickets</a>
-    <a class="btn btn-ghost" href="settings.php">Editar datos del sitio</a>
+    <?php if (is_superadmin()): ?>
+      <a class="btn btn-ghost" href="settings.php">Editar datos del sitio</a>
+    <?php endif; ?>
   </div>
 </div>
 

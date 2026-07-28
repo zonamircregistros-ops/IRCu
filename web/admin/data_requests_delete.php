@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/includes/auth.php';
 require_login();
+require_role(['superadmin']);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: data_requests.php');

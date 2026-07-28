@@ -47,6 +47,10 @@ require __DIR__ . '/includes/header.php';
                 $pillClass = $s['status'] === 'operativo' ? 'pill-on' : ($s['status'] === 'no_operativo' ? 'pill-off' : '');
               ?>
               <span class="pill <?= $pillClass ?>"><?= h($statusLabels[$s['status']]) ?></span>
+              <?php $uptime = get_uptime_percent($s['service_name'], 30); ?>
+              <?php if ($uptime !== null): ?>
+                <div class="table-note">Uptime 30 días: <strong><?= $uptime ?>%</strong></div>
+              <?php endif; ?>
               <div class="table-note">Actualizado <?= h(date('d/m/Y H:i', strtotime($s['updated_at']))) ?></div>
             </div>
           </div>

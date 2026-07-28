@@ -68,6 +68,161 @@ mainNav.querySelectorAll('a').forEach((link) => {
   });
 })();
 
+// Checklist de "primeros pasos": progreso guardado en localStorage.
+(() => {
+  const list = document.getElementById('onboarding-checklist');
+  if (!list) return;
+  const STORAGE_KEY = 'chateanos_onboarding';
+  const boxes = Array.from(list.querySelectorAll('input[type=checkbox]'));
+  const progressEl = document.getElementById('onboarding-progress');
+
+  let done = {};
+  try {
+    done = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  } catch (e) {
+    done = {};
+  }
+
+  const updateProgress = () => {
+    const checked = boxes.filter((b) => b.checked).length;
+    if (progressEl) progressEl.textContent = `${checked} de ${boxes.length} completados`;
+  };
+
+  boxes.forEach((box) => {
+    box.checked = !!done[box.dataset.step];
+    box.addEventListener('change', () => {
+      done[box.dataset.step] = box.checked;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(done));
+      } catch (e) {
+        // Sin localStorage disponible: el progreso no persiste, pero no rompe nada.
+      }
+      updateProgress();
+    });
+  });
+
+  updateProgress();
+})();
+
+// Modo lectura simplificada para artículos largos.
+(() => {
+  const btn = document.getElementById('reading-mode-toggle');
+  const body = document.querySelector('.news-body');
+  if (!btn || !body) return;
+
+  const apply = (on) => {
+    document.documentElement.classList.toggle('reading-mode', on);
+    btn.setAttribute('aria-pressed', String(on));
+    btn.textContent = on ? '📖 Modo normal' : '📖 Modo lectura';
+  };
+
+  let on = false;
+  try {
+    on = sessionStorage.getItem('chateanos_reading_mode') === '1';
+  } catch (e) {
+    on = false;
+  }
+  apply(on);
+
+  btn.addEventListener('click', () => {
+    on = !on;
+    apply(on);
+    try {
+      sessionStorage.setItem('chateanos_reading_mode', on ? '1' : '0');
+    } catch (e) {
+      // Sin sessionStorage disponible: el modo no persiste entre páginas.
+    }
+  });
+})();
+
+// Tour guiado de bienvenida (solo home, una vez por navegador).
+(() => {
+  const steps = [
+    { selector: '.hero-cta .btn-primary', text: 'Empezá por acá: entrás al webchat sin instalar nada.' },
+    { selector: 'a[href="salas.php#general"]', text: 'Elegí una sala según lo que te interese charlar.' },
+    { selector: 'a[href="/gestiones.php"]', text: 'Desde Gestiones podés pedir ayuda, apelar o abrir un ticket.' },
+    { selector: 'a[href="conectar.php"]', text: '¿Preferís un cliente de escritorio? Acá tenés los datos de conexión.' },
+  ];
+
+  const STORAGE_KEY = 'chateanos_tour_seen';
+  const tourRoot = document.querySelector('.hero');
+  if (!tourRoot) return;
+
+  let seen = false;
+  try {
+    seen = localStorage.getItem(STORAGE_KEY) === '1';
+  } catch (e) {
+    seen = false;
+  }
+  if (seen) return;
+
+  let index = 0;
+  let tooltip = null;
+
+  const cleanup = () => {
+    if (tooltip) tooltip.remove();
+    tooltip = null;
+    try {
+      localStorage.setItem(STORAGE_KEY, '1');
+    } catch (e) {
+      // Sin localStorage: el tour puede volver a aparecer, no es grave.
+    }
+  };
+
+  const showStep = () => {
+    if (tooltip) tooltip.remove();
+    if (index >= steps.length) {
+      cleanup();
+      return;
+    }
+    const step = steps[index];
+    const target = document.querySelector(step.selector);
+    if (!target) {
+      index++;
+      showStep();
+      return;
+    }
+    tooltip = document.createElement('div');
+    tooltip.className = 'onboarding-tooltip';
+    tooltip.innerHTML = `<p>${step.text}</p>`;
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'btn btn-primary btn-sm';
+    nextBtn.textContent = index === steps.length - 1 ? 'Listo' : 'Siguiente';
+    nextBtn.addEventListener('click', () => { index++; showStep(); });
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'btn btn-ghost btn-sm';
+    skipBtn.textContent = 'Saltar';
+    skipBtn.addEventListener('click', cleanup);
+    const actions = document.createElement('div');
+    actions.className = 'onboarding-tooltip-actions';
+    actions.append(skipBtn, nextBtn);
+    tooltip.appendChild(actions);
+    document.body.appendChild(tooltip);
+
+    const rect = target.getBoundingClientRect();
+    tooltip.style.top = `${window.scrollY + rect.bottom + 10}px`;
+    tooltip.style.left = `${Math.max(12, window.scrollX + rect.left)}px`;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  setTimeout(showStep, 900);
+})();
+
+// Widget "vistas recientes": pide el contador propio, sin terceros.
+(() => {
+  const widget = document.getElementById('recent-views-widget');
+  if (!widget) return;
+  fetch('/vistas-recientes.php?path=' + encodeURIComponent(widget.dataset.path || window.location.pathname))
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.count >= 2) {
+        widget.textContent = `👀 ${data.count} personas vieron esto en los últimos 5 minutos`;
+        widget.hidden = false;
+      }
+    })
+    .catch(() => {});
+})();
+
 // Compartir noticia con la Web Share API nativa, si el navegador la soporta.
 (() => {
   const btn = document.getElementById('native-share-btn');

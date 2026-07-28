@@ -6,10 +6,14 @@ $type = (string) ($_GET['type'] ?? '');
 $token = (string) ($_GET['token'] ?? '');
 
 $tables = [
-    'bnc'    => 'bnc_requests',
-    'appeal' => 'gline_appeals',
-    'ircop'  => 'ircop_applications',
-    'ticket' => 'tickets',
+    'bnc'     => 'bnc_requests',
+    'appeal'  => 'gline_appeals',
+    'ircop'   => 'ircop_applications',
+    'ticket'  => 'tickets',
+    'blog'    => 'blog_posts',
+    'forum'   => 'forum_topics',
+    'profile' => 'user_profiles',
+    'story'   => 'community_stories',
 ];
 
 $pageTitle = 'Verificar email';

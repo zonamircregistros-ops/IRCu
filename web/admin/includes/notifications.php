@@ -28,5 +28,18 @@ function get_admin_notifications(): array
         $items[] = ['label' => 'Tickets abiertos', 'href' => 'tickets.php', 'count' => $openTickets];
     }
 
+    $pendingModeration = 0;
+    foreach (['blog_posts', 'forum_topics', 'forum_replies', 'user_profiles', 'community_stories'] as $table) {
+        $pendingModeration += (int) db()->query("SELECT COUNT(*) FROM {$table} WHERE status = 'pendiente'")->fetchColumn();
+    }
+    if ($pendingModeration > 0) {
+        $items[] = ['label' => 'Contenido pendiente de moderar', 'href' => 'moderation.php', 'count' => $pendingModeration];
+    }
+
+    $pendingCollaboration = (int) db()->query("SELECT COUNT(*) FROM collaboration_applications WHERE status = 'pendiente'")->fetchColumn();
+    if ($pendingCollaboration > 0) {
+        $items[] = ['label' => 'Postulaciones de colaboración pendientes', 'href' => 'collaboration.php', 'count' => $pendingCollaboration];
+    }
+
     return $items;
 }

@@ -37,11 +37,16 @@ require __DIR__ . '/includes/header.php';
     <a class="back-link" href="/noticias.php">← Todas las noticias</a>
     <span class="news-date"><?= h(date('d/m/Y', strtotime($article['published_at']))) ?></span>
     <h1><?= h($article['title']) ?></h1>
+    <p id="recent-views-widget" class="recent-views-widget" data-path="<?= h('/noticia.php?slug=' . $article['slug']) ?>" hidden></p>
   </div>
 </section>
 
 <section class="section section-tight">
   <div class="container container-narrow">
+    <div style="text-align:right; margin-bottom:12px;">
+      <button type="button" class="btn btn-ghost btn-sm" id="reading-mode-toggle" aria-pressed="false">📖 Modo lectura</button>
+    </div>
+
     <?php if (!empty($article['cover_image'])): ?>
       <img class="news-cover" src="<?= h($article['cover_image']) ?>" alt="">
     <?php endif; ?>
