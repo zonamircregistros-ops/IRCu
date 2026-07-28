@@ -6,9 +6,19 @@ require __DIR__ . '/includes/admin_header.php';
 
 $statusLabels = ['pendiente' => 'Pendiente', 'aprobado' => 'Aprobado', 'rechazado' => 'Rechazado'];
 
-$apps = db()->query(
-    'SELECT * FROM ircop_applications ORDER BY (status = "pendiente") DESC, created_at DESC'
-)->fetchAll();
+$perPage = 20;
+$page = max(1, (int) ($_GET['page'] ?? 1));
+$totalRows = (int) db()->query('SELECT COUNT(*) FROM ircop_applications')->fetchColumn();
+$totalPages = max(1, (int) ceil($totalRows / $perPage));
+$page = min($page, $totalPages);
+
+$stmt = db()->prepare(
+    'SELECT * FROM ircop_applications ORDER BY (status = "pendiente") DESC, created_at DESC LIMIT :limit OFFSET :offset'
+);
+$stmt->bindValue('limit', $perPage, PDO::PARAM_INT);
+$stmt->bindValue('offset', ($page - 1) * $perPage, PDO::PARAM_INT);
+$stmt->execute();
+$apps = $stmt->fetchAll();
 ?>
 
 <div class="admin-topbar">
@@ -37,7 +47,7 @@ $apps = db()->query(
           <td><?= h($a['username']) ?></td>
           <td><?= h($a['real_name']) ?></td>
           <td><?= (int) $a['age'] ?></td>
-          <td><?= h($a['email']) ?></td>
+          <td><?= h($a['email']) ?> <?= $a['email_verified'] ? '<span class="pill pill-on" title="Email verificado">✓</span>' : '<span class="pill pill-off" title="Email sin verificar">?</span>' ?></td>
           <td><?= h(date('d/m/Y', strtotime($a['created_at']))) ?></td>
           <td><span class="pill <?= $a['status'] === 'aprobado' ? 'pill-on' : ($a['status'] === 'rechazado' ? 'pill-off' : '') ?>"><?= h($statusLabels[$a['status']]) ?></span></td>
           <td class="actions">
@@ -53,5 +63,7 @@ $apps = db()->query(
     </tbody>
   </table>
 </div>
+
+<?php require __DIR__ . '/includes/pagination.php'; ?>
 
 <?php require __DIR__ . '/includes/admin_footer.php'; ?>

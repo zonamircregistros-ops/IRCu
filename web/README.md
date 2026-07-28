@@ -43,18 +43,31 @@ para editar todo sin tocar código.
 web/
   index.php, salas.php, staff.php, normas.php, conectar.php   páginas públicas
   noticias.php, noticia.php    listado y detalle de noticias
+  rss.php                      feed RSS 2.0 de noticias publicadas
   servicios.php                Git/Wiki/Nube/Webmail/Natasha BNC
   natasha/                     Natasha Bouncer: index.php (ES), en.php (EN),
                                 solicitar.php y tutorial.php (bilingües)
   faq.php                      preguntas frecuentes sobre IRC y la red
+  buscar.php                   buscador (noticias, salas, FAQ)
   gestiones.php                 hub de trámites con el staff
   apelar.php, ircop.php, tickets.php, ticket.php   formularios de Gestiones
                                 y seguimiento de tickets por token
-  includes/       conexión a DB, helpers, mailer.php, header/footer + radio_player.php
+  verificar.php                 confirmación de email (double opt-in) para
+                                los formularios públicos
+  donaciones.php, creditos.php, estado.php   donaciones, créditos y estado
+                                del servicio
+  privacidad.php, terminos.php  política de privacidad y términos de uso
+  404.php                       página de error 404 personalizada
+  sitemap.php, robots.txt       SEO: mapa del sitio dinámico y robots.txt
+  .htaccess                     ErrorDocument 404, protección de config.php
+  includes/       conexión a DB, helpers, mailer.php, header/footer,
+                  radio_player.php y cookie_banner.php
   admin/          panel de administración (login requerido)
   css/, js/       estilos y JS del sitio público (incluye el reproductor de radio)
-  assets/         favicon, etc.
+  assets/         favicons (PNG/SVG), og-image.png, site.webmanifest
 config.example.php   plantilla de configuración (config.php NO se versiona)
+tools/            scripts PHP+GD de un solo uso para regenerar favicons y
+                  la imagen Open Graph (no accesibles desde la web)
 ```
 
 ## Editable desde el panel (`/admin`)
@@ -78,6 +91,17 @@ config.example.php   plantilla de configuración (config.php NO se versiona)
   cambiar su estado, con notas internas del staff.
 - **Tickets**: hilo de conversación con el usuario, respuesta desde el panel
   (notifica por email) y estado (abierto/aprobado/rechazado/cerrado).
+- **Testimonios**: frases de la comunidad que se muestran en el home.
+- **Créditos**: fundadores, staff, colaboradores y donantes (`/creditos.php`).
+- **Estado del servicio**: estado manual de Red IRC, Webchat, Natasha Bouncer,
+  Git, Wiki, Nube y Webmail (`/estado.php`).
+- **Analítica**: vistas por página, top de páginas y referrers, sin cookies
+  ni scripts de terceros (`page_views` solo guarda ruta, referrer y fecha).
+- Los listados largos (noticias, solicitudes, apelaciones, postulaciones,
+  tickets) están paginados (20 filas por página).
+- Una campana de notificaciones en la barra lateral del panel muestra la
+  cantidad de solicitudes/apelaciones/postulaciones pendientes y tickets
+  abiertos, con un desplegable de acceso directo.
 
 ### Notificaciones por email
 
@@ -93,3 +117,24 @@ Todo el acceso al panel requiere sesión iniciada; las consultas usan
 sentencias preparadas (PDO) y los formularios administrativos llevan token
 CSRF. Los formularios públicos (solicitud de Natasha, apelaciones,
 postulaciones, tickets) llevan un honeypot básico contra bots.
+
+### Legal, privacidad y anti-abuso
+
+- **Privacidad y Términos** (`/privacidad.php`, `/terminos.php`) y un
+  **aviso de cookies** (localStorage, sin cookies de terceros) que se
+  muestra una sola vez por navegador.
+- **Rate limiting** real (tabla `rate_limits`, por IP y por formulario) en
+  solicitud de Natasha, apelaciones, postulaciones IRCop y creación/
+  respuesta de tickets — máximo 5 envíos por hora (20 para respuestas de
+  ticket), para frenar abuso sin bloquear el uso normal.
+- **Verificación de email** (double opt-in no bloqueante): cada formulario
+  público manda un link de confirmación (`/verificar.php`); el panel
+  muestra una marca ✓/? de email verificado/sin verificar, pero la
+  solicitud se puede gestionar igual sin esperar la confirmación.
+
+### SEO y descubribilidad
+
+Open Graph / Twitter Cards en todas las páginas (con `og-image.png`
+generada), `sitemap.php` dinámico + `robots.txt`, favicons completos
+(16/32/180/192/512 px) + `site.webmanifest` para instalar el sitio como
+PWA, feed RSS de noticias, buscador interno y una página 404 propia.

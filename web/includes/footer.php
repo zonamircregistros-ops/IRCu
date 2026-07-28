@@ -32,6 +32,14 @@
         <a href="<?= h(webchat_link()) ?>" target="_blank" rel="noopener">Webchat</a>
         <a href="/conectar.php"><?= h(setting('irc_server')) ?>:<?= h(setting('irc_port_tls')) ?></a>
         <a href="/natasha/">Natasha BNC</a>
+        <a href="/estado.php">Estado del servicio</a>
+      </div>
+      <div class="footer-col">
+        <h4>Más</h4>
+        <a href="/creditos.php">Créditos</a>
+        <a href="/donaciones.php">Donar</a>
+        <a href="/privacidad.php">Privacidad</a>
+        <a href="/terminos.php">Términos</a>
       </div>
     </div>
   </div>
@@ -41,6 +49,7 @@
 </footer>
 
 <?php require __DIR__ . '/radio_player.php'; ?>
+<?php require __DIR__ . '/cookie_banner.php'; ?>
 
 <script src="/js/main.js"></script>
 </body>

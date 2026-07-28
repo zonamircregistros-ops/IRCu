@@ -15,6 +15,7 @@ require __DIR__ . '/includes/header.php';
   <div class="container">
     <h1>Noticias</h1>
     <p>Anuncios, novedades y cambios en la red.</p>
+    <p><a class="back-link" style="display:inline-block; margin:0;" href="/rss.php">📡 Suscribirte por RSS</a></p>
   </div>
 </section>
 

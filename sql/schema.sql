@@ -121,6 +121,8 @@ CREATE TABLE IF NOT EXISTS bnc_requests (
   notes           TEXT         NULL,
   bnc_password    VARCHAR(64)  NULL,
   status          ENUM('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
+  email_verified      TINYINT(1)   NOT NULL DEFAULT 0,
+  email_verify_token  VARCHAR(64)  NULL,
   created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_status (status, created_at)
@@ -137,6 +139,8 @@ CREATE TABLE IF NOT EXISTS gline_appeals (
   reason          TEXT         NOT NULL,
   admin_response  TEXT         NULL,
   status          ENUM('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
+  email_verified      TINYINT(1)   NOT NULL DEFAULT 0,
+  email_verify_token  VARCHAR(64)  NULL,
   created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_status (status, created_at)
@@ -157,6 +161,8 @@ CREATE TABLE IF NOT EXISTS ircop_applications (
   reason            TEXT         NOT NULL,
   admin_notes       TEXT         NULL,
   status            ENUM('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
+  email_verified      TINYINT(1)   NOT NULL DEFAULT 0,
+  email_verify_token  VARCHAR(64)  NULL,
   created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_status (status, created_at)
@@ -173,6 +179,8 @@ CREATE TABLE IF NOT EXISTS tickets (
   requester_name    VARCHAR(80)  NOT NULL,
   requester_email   VARCHAR(160) NOT NULL,
   status            ENUM('abierto','aprobado','rechazado','cerrado') NOT NULL DEFAULT 'abierto',
+  email_verified      TINYINT(1)   NOT NULL DEFAULT 0,
+  email_verify_token  VARCHAR(64)  NULL,
   created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -188,4 +196,71 @@ CREATE TABLE IF NOT EXISTS ticket_messages (
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_ticket (ticket_id, created_at),
   CONSTRAINT fk_ticket_messages_ticket FOREIGN KEY (ticket_id) REFERENCES tickets (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- rate_limits: control de envíos por IP en formularios públicos
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS rate_limits (
+  id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  rate_key    VARCHAR(160) NOT NULL,
+  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_key_time (rate_key, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- page_views: analítica propia, sin IP ni cookies de terceros
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS page_views (
+  id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  path        VARCHAR(255) NOT NULL,
+  referrer    VARCHAR(255) NULL,
+  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_path_time (path, created_at),
+  KEY idx_time (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- testimonials: "lo que dice la comunidad" en el home
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS testimonials (
+  id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  author_nick       VARCHAR(60)  NOT NULL,
+  quote             TEXT         NOT NULL,
+  years_in_network  SMALLINT UNSIGNED NULL,
+  avatar_url        VARCHAR(255) NULL,
+  sort_order        SMALLINT     NOT NULL DEFAULT 0,
+  is_active         TINYINT(1)   NOT NULL DEFAULT 1,
+  created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_active_order (is_active, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- credits: creditos.php (fundadores, colaboradores, donantes)
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS credits (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name        VARCHAR(100) NOT NULL,
+  role_label  VARCHAR(120) NULL,
+  category    ENUM('fundadores','colaboradores','donantes') NOT NULL DEFAULT 'colaboradores',
+  sort_order  SMALLINT     NOT NULL DEFAULT 0,
+  is_active   TINYINT(1)   NOT NULL DEFAULT 1,
+  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_category_active (category, is_active, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- service_status: estado.php (Red IRC, Webchat, Git, Wiki, Nube...)
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS service_status (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  service_name  VARCHAR(60)  NOT NULL,
+  url           VARCHAR(255) NULL,
+  status        ENUM('operativo','degradado','no_operativo') NOT NULL DEFAULT 'operativo',
+  note          VARCHAR(255) NULL,
+  sort_order    SMALLINT     NOT NULL DEFAULT 0,
+  updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

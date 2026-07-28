@@ -30,7 +30,11 @@ INSERT INTO settings (setting_key, setting_value) VALUES
   ('bnc_service_status',       'operativo'),
   ('bnc_connect_host',         'natasha.chateanos.com'),
   ('bnc_connect_port',         '1025'),
-  ('natasha_mail_from',        'natasha@chateanos.com')
+  ('natasha_mail_from',        'natasha@chateanos.com'),
+  ('donation_cafecito_url',    'https://cafecito.app/chateanos'),
+  ('donation_paypal_url',      'https://paypal.me/chateanos'),
+  ('donation_crypto_network',  'Bitcoin (BTC)'),
+  ('donation_crypto_address',  'bc1qexampleaddressnotreal0000000000000')
 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
 
 INSERT INTO channels (name, category, description, is_nsfw, sort_order) VALUES
@@ -92,4 +96,26 @@ INSERT INTO news (title, slug, excerpt, body, published_at) VALUES
    'Mantené tu sesión IRC siempre conectada, gratis hasta 5 redes.',
    'Presentamos Natasha, nuestro servicio de bouncer (BNC): quedás conectado a Chateanos y hasta 4 redes más aunque cierres el cliente. El plan gratuito incluye IPv4; el plan Premium por 1.50 al mes suma redes ilimitadas, IPv6 y la posibilidad de elegir datacenter. Toda la info y el formulario de solicitud en /natasha.',
    NOW())
+;
+
+INSERT INTO testimonials (author_nick, quote, years_in_network, sort_order) VALUES
+  ('Root',    'Empecé como usuario en 2017 y nunca me fui. Hoy es mi segunda casa.', 8, 1),
+  ('Malvina', 'Encontré gente de todo Latinoamérica acá. El bouncer de Natasha cambió todo, quedo conectada siempre.', 4, 2),
+  ('Tucu',    'Lo que más me gusta es que el staff responde de verdad. Se nota que es gente que usa la red.', 2, 3)
+;
+
+INSERT INTO credits (name, role_label, category, sort_order) VALUES
+  ('Nairobi',   'Cofundador de Natasha IRCd', 'fundadores', 1),
+  ('Helsinki',  'Cofundador de Natasha IRCd', 'fundadores', 2),
+  ('Comunidad de BuenChat', 'Por diez años de historia compartida', 'colaboradores', 1)
+;
+
+INSERT INTO service_status (service_name, url, status, sort_order) VALUES
+  ('Red IRC',         'irc.chateanos.com',            'operativo', 1),
+  ('Webchat',          'https://webchat.chateanos.com', 'operativo', 2),
+  ('Natasha Bouncer',  '/natasha/',                     'operativo', 3),
+  ('Git',              'https://git.chateanos.com',     'operativo', 4),
+  ('Wiki',             'https://wiki.chateanos.com',    'operativo', 5),
+  ('Nube',             'https://nube.chateanos.com',    'operativo', 6),
+  ('Webmail',          'https://mail.chateanos.com',    'operativo', 7)
 ;

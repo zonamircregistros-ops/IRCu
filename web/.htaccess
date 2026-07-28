@@ -1,0 +1,10 @@
+# Página 404 personalizada
+ErrorDocument 404 /404.php
+
+# No listar directorios
+Options -Indexes
+
+# Defensa en profundidad: nunca servir config.php como texto plano
+<Files "config.php">
+  Require all denied
+</Files>

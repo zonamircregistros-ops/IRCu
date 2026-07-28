@@ -27,6 +27,7 @@ $t = $lang === 'en' ? [
     'success_back' => 'Back to Natasha Bouncer',
     'error_required' => 'Nick and contact email are required.',
     'error_email' => 'Enter a valid email address.',
+    'error_rate_limit' => 'Too many requests from your connection. Try again in a while.',
 ] : [
     'title' => 'Solicitar Natasha Bouncer',
     'intro' => 'Completá el formulario y el staff te va a contactar para activar tu cuenta.',
@@ -50,6 +51,7 @@ $t = $lang === 'en' ? [
     'success_back' => 'Volver a Natasha Bouncer',
     'error_required' => 'El nick y el email de contacto son obligatorios.',
     'error_email' => 'Ingresá un email válido.',
+    'error_rate_limit' => 'Demasiados intentos desde tu conexión. Probá de nuevo más tarde.',
 ];
 
 $backHref = '/natasha/' . ($lang === 'en' ? 'en.php' : 'index.php');
@@ -78,6 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($honeypot !== '') {
         // Bot detectado por el honeypot: simulamos éxito sin guardar nada.
         $success = true;
+    } elseif (!rate_limit_check('bnc_solicitar', 5, 3600)) {
+        $errors[] = $t['error_rate_limit'];
     } else {
         if ($form['nick'] === '' || $form['contact'] === '') {
             $errors[] = $t['error_required'];
@@ -86,9 +90,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($errors)) {
+            $verifyToken = random_token();
             $stmt = db()->prepare(
-                'INSERT INTO bnc_requests (nick, contact, plan, datacenter, networks_wanted, notes)
-                 VALUES (:nick, :contact, :plan, :datacenter, :networks_wanted, :notes)'
+                'INSERT INTO bnc_requests (nick, contact, plan, datacenter, networks_wanted, notes, email_verify_token)
+                 VALUES (:nick, :contact, :plan, :datacenter, :networks_wanted, :notes, :token)'
             );
             $stmt->execute([
                 'nick' => $form['nick'],
@@ -97,7 +102,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'datacenter' => $form['datacenter'] ?: null,
                 'networks_wanted' => $form['networks_wanted'] ?: null,
                 'notes' => $form['notes'] ?: null,
+                'token' => $verifyToken,
             ]);
+
+            $verifyUrl = 'https://chateanos.com/verificar.php?type=bnc&token=' . $verifyToken;
+            $confirmBody = "Hola {$form['nick']},\n\n"
+                . "Recibimos tu solicitud de Natasha Bouncer. Confirmá tu email haciendo clic acá:\n"
+                . "{$verifyUrl}\n\n"
+                . "El staff la va a revisar y te va a contactar por este mismo email.\n\n"
+                . "Saludos,\n" . setting('site_name');
+            send_mail($form['contact'], 'Confirmá tu solicitud de Natasha Bouncer', $confirmBody, setting('natasha_mail_from'), 'Natasha Bouncer');
+
             $success = true;
         }
     }

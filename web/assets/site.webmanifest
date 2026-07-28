@@ -1,0 +1,13 @@
+{
+  "name": "Chateanos IRC Network",
+  "short_name": "Chateanos",
+  "description": "Chatea en español, sin vueltas.",
+  "start_url": "/index.php",
+  "display": "standalone",
+  "background_color": "#0a0808",
+  "theme_color": "#ff1f4d",
+  "icons": [
+    { "src": "/assets/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

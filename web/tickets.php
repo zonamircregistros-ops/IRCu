@@ -35,6 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($honeypot !== '') {
         $success = true;
+    } elseif (!rate_limit_check('tickets_crear', 5, 3600)) {
+        $errors[] = 'Demasiados intentos desde tu conexión. Probá de nuevo más tarde.';
     } else {
         if ($form['subject'] === '' || $form['requester_name'] === '' || $form['requester_email'] === '' || $form['message'] === '') {
             $errors[] = 'Completá todos los campos obligatorios.';
@@ -44,12 +46,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($errors)) {
             $token = random_token();
+            $verifyToken = random_token();
 
             $pdo = db();
             $pdo->beginTransaction();
             $stmt = $pdo->prepare(
-                'INSERT INTO tickets (token, subject, category, requester_name, requester_email)
-                 VALUES (:token, :subject, :category, :requester_name, :requester_email)'
+                'INSERT INTO tickets (token, subject, category, requester_name, requester_email, email_verify_token)
+                 VALUES (:token, :subject, :category, :requester_name, :requester_email, :verify_token)'
             );
             $stmt->execute([
                 'token' => $token,
@@ -57,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'category' => $form['category'],
                 'requester_name' => $form['requester_name'],
                 'requester_email' => $form['requester_email'],
+                'verify_token' => $verifyToken,
             ]);
             $ticketId = (int) $pdo->lastInsertId();
 
@@ -66,9 +70,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute(['id' => $ticketId, 'message' => $form['message']]);
             $pdo->commit();
 
+            $verifyUrl = 'https://chateanos.com/verificar.php?type=ticket&token=' . $verifyToken;
             $trackingUrl = 'https://chateanos.com/ticket.php?token=' . $token;
             $body = "Hola {$form['requester_name']},\n\n"
                 . "Creamos tu ticket \"{$form['subject']}\".\n\n"
+                . "Confirmá tu email haciendo clic acá:\n{$verifyUrl}\n\n"
                 . "Podés seguir la conversación y las respuestas del staff en este link (guardalo, es privado):\n"
                 . "{$trackingUrl}\n\n"
                 . "Saludos,\n" . setting('site_name');

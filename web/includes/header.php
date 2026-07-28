@@ -11,6 +11,11 @@ $pageDescription ??= setting('tagline');
 /** @var array<int,string> $extraStyles */
 $extraStyles ??= [];
 
+$canonicalUrl = 'https://chateanos.com' . strtok($_SERVER['REQUEST_URI'] ?? '/', '?');
+$ogImageUrl = 'https://chateanos.com/assets/og-image.png';
+
+track_page_view(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+
 $navItems = [
     'inicio'     => ['href' => '/index.php',     'label' => 'Inicio'],
     'salas'      => ['href' => '/salas.php',     'label' => 'Salas'],
@@ -28,7 +33,30 @@ $navItems = [
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= h($pageTitle) ?> — <?= h(setting('site_name')) ?></title>
 <meta name="description" content="<?= h($pageDescription) ?>">
+<link rel="canonical" href="<?= h($canonicalUrl) ?>">
+<link rel="alternate" type="application/rss+xml" title="<?= h(setting('site_name')) ?> — Noticias" href="/rss.php">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="<?= h(setting('site_name')) ?>">
+<meta property="og:title" content="<?= h($pageTitle) ?> — <?= h(setting('site_name')) ?>">
+<meta property="og:description" content="<?= h($pageDescription) ?>">
+<meta property="og:url" content="<?= h($canonicalUrl) ?>">
+<meta property="og:image" content="<?= h($ogImageUrl) ?>">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="es_AR">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="<?= h($pageTitle) ?> — <?= h(setting('site_name')) ?>">
+<meta name="twitter:description" content="<?= h($pageDescription) ?>">
+<meta name="twitter:image" content="<?= h($ogImageUrl) ?>">
+
 <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+<link rel="manifest" href="/assets/site.webmanifest">
+<meta name="theme-color" content="#ff1f4d">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -59,6 +87,7 @@ $navItems = [
     </nav>
 
     <div class="header-actions">
+      <a class="search-icon-btn" href="/buscar.php" aria-label="Buscar en el sitio">🔎</a>
       <a class="btn btn-primary btn-sm" href="<?= h(webchat_link()) ?>" target="_blank" rel="noopener">Entrar al webchat</a>
       <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menú" aria-expanded="false">
         <span></span><span></span><span></span>

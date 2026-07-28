@@ -21,11 +21,20 @@ $fieldGroups = [
         'radio_station_name' => 'Nombre de la radio',
     ],
     'Natasha Bouncer' => [
+        'bnc_connect_host'            => 'Host de conexión del bouncer',
+        'bnc_connect_port'            => 'Puerto de conexión del bouncer',
+        'natasha_mail_from'           => 'Email remitente de las notificaciones',
         'bnc_free_limit'              => 'Límite de redes en plan Free (total)',
         'bnc_free_own_choice'         => 'Redes a elección en plan Free (además de Chateanos)',
         'bnc_premium_price'           => 'Precio Premium (mensual)',
         'bnc_premium_extra_ip_price'  => 'Precio extra por IP privada',
         'bnc_service_status'          => 'Estado del servicio',
+    ],
+    'Donaciones' => [
+        'donation_cafecito_url'   => 'URL de Cafecito',
+        'donation_paypal_url'     => 'URL de PayPal',
+        'donation_crypto_network' => 'Red cripto (ej: Bitcoin (BTC))',
+        'donation_crypto_address' => 'Dirección de wallet',
     ],
 ];
 

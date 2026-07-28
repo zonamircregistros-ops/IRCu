@@ -1,7 +1,11 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/notifications.php';
 require_login();
+
+$adminNotifications = get_admin_notifications();
+$notificationCount = array_sum(array_column($adminNotifications, 'count'));
 
 /** @var string $pageTitle */
 /** @var string $activeAdminNav */
@@ -19,6 +23,10 @@ $adminNavItems = [
     'gline_appeals'        => ['href' => 'gline_appeals.php',      'label' => 'Apelaciones G-Line'],
     'ircop_applications'   => ['href' => 'ircop_applications.php', 'label' => 'Postulaciones IRCop'],
     'tickets'              => ['href' => 'tickets.php',            'label' => 'Tickets'],
+    'testimonials'         => ['href' => 'testimonials.php',       'label' => 'Testimonios'],
+    'credits'              => ['href' => 'credits.php',            'label' => 'Créditos'],
+    'service_status'       => ['href' => 'service_status.php',     'label' => 'Estado del servicio'],
+    'analytics'            => ['href' => 'analytics.php',          'label' => 'Analítica'],
     'settings'             => ['href' => 'settings.php',           'label' => 'Ajustes del sitio'],
     'account'              => ['href' => 'account.php',            'label' => 'Mi cuenta'],
 ];
@@ -39,13 +47,32 @@ $flash = flash_get();
 <body class="admin-body">
 <div class="admin-shell">
   <aside class="admin-sidebar">
-    <a href="index.php" class="brand">
-      <span class="brand-mark">#</span>
-      <span class="brand-name"><?= h(setting('site_name')) ?></span>
-    </a>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+      <a href="index.php" class="brand">
+        <span class="brand-mark">#</span>
+        <span class="brand-name"><?= h(setting('site_name')) ?></span>
+      </a>
+      <div style="position:relative;">
+        <button class="notification-bell" id="notification-bell" aria-label="Notificaciones" type="button">
+          🔔
+          <?php if ($notificationCount > 0): ?>
+            <span class="badge-count"><?= $notificationCount > 99 ? '99+' : $notificationCount ?></span>
+          <?php endif; ?>
+        </button>
+        <div class="notification-dropdown" id="notification-dropdown">
+          <?php if (empty($adminNotifications)): ?>
+            <p class="notification-empty">No hay pendientes. 🎉</p>
+          <?php else: ?>
+            <?php foreach ($adminNotifications as $n): ?>
+              <a href="<?= h($n['href']) ?>"><?= h($n['label']) ?> — <strong><?= $n['count'] ?></strong></a>
+            <?php endforeach; ?>
+          <?php endif; ?>
+        </div>
+      </div>
+    </div>
     <nav class="admin-nav">
-      <?php foreach ($adminNavItems as $key => $item): ?>
-        <a href="<?= h($item['href']) ?>" class="<?= $activeAdminNav === $key ? 'is-active' : '' ?>"><?= h($item['label']) ?></a>
+      <?php foreach ($adminNavItems as $key => $navItem): ?>
+        <a href="<?= h($navItem['href']) ?>" class="<?= $activeAdminNav === $key ? 'is-active' : '' ?>"><?= h($navItem['label']) ?></a>
       <?php endforeach; ?>
     </nav>
     <div class="admin-sidebar-footer">

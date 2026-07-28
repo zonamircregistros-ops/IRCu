@@ -30,6 +30,8 @@ if ($ticket && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Este ticket ya está cerrado y no admite más respuestas.';
     } elseif ($message === '') {
         $error = 'Escribí un mensaje antes de enviar.';
+    } elseif (!rate_limit_check('ticket_responder', 20, 3600)) {
+        $error = 'Demasiados mensajes seguidos. Probá de nuevo en un rato.';
     } else {
         $stmt = db()->prepare('INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (:id, "usuario", :message)');
         $stmt->execute(['id' => $ticket['id'], 'message' => $message]);

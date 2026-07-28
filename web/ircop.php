@@ -29,6 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($honeypot !== '') {
         $success = true;
+    } elseif (!rate_limit_check('ircop', 5, 3600)) {
+        $errors[] = 'Demasiados intentos desde tu conexión. Probá de nuevo más tarde.';
     } else {
         $required = ['username', 'real_name', 'age', 'birthdate', 'email', 'user_history', 'reason'];
         foreach ($required as $key) {
@@ -51,9 +53,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($errors)) {
+            $verifyToken = random_token();
             $stmt = db()->prepare(
-                'INSERT INTO ircop_applications (username, real_name, age, birthdate, email, user_history, notable_history, reason)
-                 VALUES (:username, :real_name, :age, :birthdate, :email, :user_history, :notable_history, :reason)'
+                'INSERT INTO ircop_applications (username, real_name, age, birthdate, email, user_history, notable_history, reason, email_verify_token)
+                 VALUES (:username, :real_name, :age, :birthdate, :email, :user_history, :notable_history, :reason, :token)'
             );
             $stmt->execute([
                 'username' => $form['username'],
@@ -64,7 +67,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'user_history' => $form['user_history'],
                 'notable_history' => $form['notable_history'] ?: null,
                 'reason' => $form['reason'],
+                'token' => $verifyToken,
             ]);
+
+            $verifyUrl = 'https://chateanos.com/verificar.php?type=ircop&token=' . $verifyToken;
+            $body = "Hola {$form['username']},\n\n"
+                . "Recibimos tu postulación a IRCop. Confirmá tu email haciendo clic acá:\n{$verifyUrl}\n\n"
+                . "El staff la va a revisar y se va a poner en contacto por este mismo email.\n\n"
+                . "Saludos,\n" . setting('site_name');
+            send_mail($form['email'], 'Confirmá tu postulación a IRCop — ' . setting('site_name'), $body);
+
             $success = true;
         }
     }

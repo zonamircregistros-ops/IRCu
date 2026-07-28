@@ -26,6 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($honeypot !== '') {
         $success = true;
+    } elseif (!rate_limit_check('apelar', 5, 3600)) {
+        $errors[] = 'Demasiados intentos desde tu conexión. Probá de nuevo más tarde.';
     } else {
         if ($form['ip_or_range'] === '' || $form['username'] === '' || $form['email'] === '' || $form['reason'] === '') {
             $errors[] = 'Todos los campos son obligatorios.';
@@ -34,18 +36,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($errors)) {
+            $verifyToken = random_token();
             $stmt = db()->prepare(
-                'INSERT INTO gline_appeals (ip_or_range, username, email, reason) VALUES (:ip, :username, :email, :reason)'
+                'INSERT INTO gline_appeals (ip_or_range, username, email, reason, email_verify_token) VALUES (:ip, :username, :email, :reason, :token)'
             );
             $stmt->execute([
                 'ip' => $form['ip_or_range'],
                 'username' => $form['username'],
                 'email' => $form['email'],
                 'reason' => $form['reason'],
+                'token' => $verifyToken,
             ]);
 
+            $verifyUrl = 'https://chateanos.com/verificar.php?type=appeal&token=' . $verifyToken;
             $body = "Hola {$form['username']},\n\n"
                 . "Recibimos tu apelación por la expulsión (G-Line) de la IP/rango: {$form['ip_or_range']}.\n\n"
+                . "Confirmá tu email haciendo clic acá:\n{$verifyUrl}\n\n"
                 . "Motivo que enviaste:\n{$form['reason']}\n\n"
                 . "El staff la va a revisar y te va a responder a este mismo email.\n\n"
                 . "Saludos,\n" . setting('site_name');

@@ -8,6 +8,7 @@ $pageDescription = setting('tagline');
 
 $grouped = get_channels_grouped();
 $latestNews = get_news_list(true, 5);
+$testimonials = get_testimonials();
 
 $categoryMeta = [
     'general'  => ['icon' => '💬', 'desc' => 'El canal de siempre, apenas conectás'],
@@ -137,6 +138,40 @@ require __DIR__ . '/includes/header.php';
     </div>
   </div>
 </section>
+
+<?php if (!empty($testimonials)): ?>
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <h2>Lo que dice la comunidad</h2>
+      <p>Gente real, de toda Latinoamérica.</p>
+    </div>
+
+    <div class="testimonial-grid">
+      <?php foreach ($testimonials as $t): ?>
+        <div class="testimonial-card">
+          <p class="testimonial-quote">&ldquo;<?= h($t['quote']) ?>&rdquo;</p>
+          <div class="testimonial-author">
+            <div class="staff-avatar" style="width:40px;height:40px;font-size:0.9rem;">
+              <?php if (!empty($t['avatar_url'])): ?>
+                <img src="<?= h($t['avatar_url']) ?>" alt="<?= h($t['author_nick']) ?>">
+              <?php else: ?>
+                <?= h(mb_strtoupper(mb_substr($t['author_nick'], 0, 2))) ?>
+              <?php endif; ?>
+            </div>
+            <div>
+              <strong><?= h($t['author_nick']) ?></strong>
+              <?php if (!empty($t['years_in_network'])): ?>
+                <span class="testimonial-years"><?= (int) $t['years_in_network'] ?> años en la red</span>
+              <?php endif; ?>
+            </div>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
 
 <section class="section section-alt">
   <div class="container">

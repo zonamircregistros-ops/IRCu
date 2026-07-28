@@ -13,6 +13,33 @@ mainNav.querySelectorAll('a').forEach((link) => {
   });
 });
 
+// Aviso de cookies/localStorage
+(() => {
+  const banner = document.getElementById('cookie-banner');
+  if (!banner) return;
+  const STORAGE_KEY = 'chateanos_cookie_consent';
+
+  let accepted = false;
+  try {
+    accepted = localStorage.getItem(STORAGE_KEY) === '1';
+  } catch (e) {
+    accepted = false;
+  }
+
+  if (!accepted) {
+    banner.hidden = false;
+  }
+
+  document.getElementById('cookie-accept').addEventListener('click', () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, '1');
+    } catch (e) {
+      // Sin localStorage disponible: igual ocultamos el aviso para esta carga.
+    }
+    banner.hidden = true;
+  });
+})();
+
 document.querySelectorAll('.copy-btn').forEach((btn) => {
   btn.addEventListener('click', async () => {
     const value = btn.getAttribute('data-copy');

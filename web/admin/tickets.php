@@ -7,9 +7,19 @@ require __DIR__ . '/includes/admin_header.php';
 $statusLabels = ['abierto' => 'Abierto', 'aprobado' => 'Aprobado', 'rechazado' => 'Rechazado', 'cerrado' => 'Cerrado'];
 $categoryLabels = ['soporte' => 'Soporte', 'reclamo' => 'Reclamo', 'otro' => 'Otro'];
 
-$tickets = db()->query(
-    'SELECT * FROM tickets ORDER BY (status = "abierto") DESC, updated_at DESC'
-)->fetchAll();
+$perPage = 20;
+$page = max(1, (int) ($_GET['page'] ?? 1));
+$totalRows = (int) db()->query('SELECT COUNT(*) FROM tickets')->fetchColumn();
+$totalPages = max(1, (int) ceil($totalRows / $perPage));
+$page = min($page, $totalPages);
+
+$stmt = db()->prepare(
+    'SELECT * FROM tickets ORDER BY (status = "abierto") DESC, updated_at DESC LIMIT :limit OFFSET :offset'
+);
+$stmt->bindValue('limit', $perPage, PDO::PARAM_INT);
+$stmt->bindValue('offset', ($page - 1) * $perPage, PDO::PARAM_INT);
+$stmt->execute();
+$tickets = $stmt->fetchAll();
 ?>
 
 <div class="admin-topbar">
@@ -36,7 +46,7 @@ $tickets = db()->query(
         <tr>
           <td><?= h($t['subject']) ?></td>
           <td><?= h($categoryLabels[$t['category']]) ?></td>
-          <td><?= h($t['requester_name']) ?> <span style="color:var(--text-dimmer);">(<?= h($t['requester_email']) ?>)</span></td>
+          <td><?= h($t['requester_name']) ?> <span style="color:var(--text-dimmer);">(<?= h($t['requester_email']) ?>)</span> <?= $t['email_verified'] ? '<span class="pill pill-on" title="Email verificado">✓</span>' : '<span class="pill pill-off" title="Email sin verificar">?</span>' ?></td>
           <td><?= h(date('d/m/Y H:i', strtotime($t['updated_at']))) ?></td>
           <td><span class="pill <?= $t['status'] === 'abierto' ? 'pill-on' : ($t['status'] === 'rechazado' ? 'pill-off' : '') ?>"><?= h($statusLabels[$t['status']]) ?></span></td>
           <td class="actions">
@@ -52,5 +62,7 @@ $tickets = db()->query(
     </tbody>
   </table>
 </div>
+
+<?php require __DIR__ . '/includes/pagination.php'; ?>
 
 <?php require __DIR__ . '/includes/admin_footer.php'; ?>

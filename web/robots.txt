@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /config.php
+Disallow: /ticket.php
+
+Sitemap: https://chateanos.com/sitemap.php

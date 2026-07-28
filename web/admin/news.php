@@ -4,9 +4,17 @@ $pageTitle = 'Noticias';
 $activeAdminNav = 'news';
 require __DIR__ . '/includes/admin_header.php';
 
-$news = db()->query(
-    'SELECT id, title, slug, is_published, published_at FROM news ORDER BY published_at DESC'
-)->fetchAll();
+$perPage = 20;
+$page = max(1, (int) ($_GET['page'] ?? 1));
+$totalRows = (int) db()->query('SELECT COUNT(*) FROM news')->fetchColumn();
+$totalPages = max(1, (int) ceil($totalRows / $perPage));
+$page = min($page, $totalPages);
+
+$stmt = db()->prepare('SELECT id, title, slug, is_published, published_at FROM news ORDER BY published_at DESC LIMIT :limit OFFSET :offset');
+$stmt->bindValue('limit', $perPage, PDO::PARAM_INT);
+$stmt->bindValue('offset', ($page - 1) * $perPage, PDO::PARAM_INT);
+$stmt->execute();
+$news = $stmt->fetchAll();
 ?>
 
 <div class="admin-topbar">
@@ -47,5 +55,7 @@ $news = db()->query(
     </tbody>
   </table>
 </div>
+
+<?php require __DIR__ . '/includes/pagination.php'; ?>
 
 <?php require __DIR__ . '/includes/admin_footer.php'; ?>

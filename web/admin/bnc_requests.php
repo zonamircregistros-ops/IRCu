@@ -10,9 +10,19 @@ $statusLabels = [
     'rechazado' => 'Rechazado',
 ];
 
-$requests = db()->query(
-    'SELECT * FROM bnc_requests ORDER BY (status = "pendiente") DESC, created_at DESC'
-)->fetchAll();
+$perPage = 20;
+$page = max(1, (int) ($_GET['page'] ?? 1));
+$totalRows = (int) db()->query('SELECT COUNT(*) FROM bnc_requests')->fetchColumn();
+$totalPages = max(1, (int) ceil($totalRows / $perPage));
+$page = min($page, $totalPages);
+
+$stmt = db()->prepare(
+    'SELECT * FROM bnc_requests ORDER BY (status = "pendiente") DESC, created_at DESC LIMIT :limit OFFSET :offset'
+);
+$stmt->bindValue('limit', $perPage, PDO::PARAM_INT);
+$stmt->bindValue('offset', ($page - 1) * $perPage, PDO::PARAM_INT);
+$stmt->execute();
+$requests = $stmt->fetchAll();
 ?>
 
 <div class="admin-topbar">
@@ -41,7 +51,7 @@ $requests = db()->query(
       <?php foreach ($requests as $r): ?>
         <tr>
           <td><?= h($r['nick']) ?></td>
-          <td><?= h($r['contact']) ?></td>
+          <td><?= h($r['contact']) ?> <?= $r['email_verified'] ? '<span class="pill pill-on" title="Email verificado">✓</span>' : '<span class="pill pill-off" title="Email sin verificar">?</span>' ?></td>
           <td><?= $r['plan'] === 'premium' ? 'Premium' : 'Free' ?></td>
           <td><?= h($r['datacenter'] ?: '—') ?></td>
           <td><?= h($r['networks_wanted'] ?: '—') ?></td>
@@ -76,5 +86,7 @@ $requests = db()->query(
     </tbody>
   </table>
 </div>
+
+<?php require __DIR__ . '/includes/pagination.php'; ?>
 
 <?php require __DIR__ . '/includes/admin_footer.php'; ?>
