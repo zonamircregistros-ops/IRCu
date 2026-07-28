@@ -34,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         send_mail($appeal['email'], $subjectLine . ' — ' . setting('site_name'), $body);
     }
 
+    audit_log('Apelación G-Line actualizada', $appeal['username'] . ' -> ' . $status);
     flash_set('Apelación actualizada.');
     header('Location: gline_appeals.php');
     exit;

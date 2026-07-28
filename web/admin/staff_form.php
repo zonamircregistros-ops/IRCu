@@ -56,6 +56,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
+        try {
+            $uploadedAvatar = handle_uploaded_image('avatar_file', 'staff');
+            if ($uploadedAvatar !== null) {
+                $member['avatar_url'] = $uploadedAvatar;
+            }
+        } catch (\RuntimeException $e) {
+            $errors[] = $e->getMessage();
+        }
+    }
+
+    if (empty($errors)) {
         if ($isEdit) {
             $stmt = db()->prepare(
                 'UPDATE staff SET nick = :nick, role = :role, bio = :bio, avatar_url = :avatar_url,
@@ -106,7 +117,7 @@ require __DIR__ . '/includes/admin_header.php';
 <?php endif; ?>
 
 <div class="admin-card">
-  <form class="admin-form" method="post" action="staff_form.php">
+  <form class="admin-form" method="post" action="staff_form.php" enctype="multipart/form-data">
     <?= csrf_field() ?>
     <?php if ($isEdit): ?><input type="hidden" name="id" value="<?= (int) $id ?>"><?php endif; ?>
 
@@ -131,7 +142,15 @@ require __DIR__ . '/includes/admin_header.php';
 
     <div class="form-group">
       <label for="avatar_url">URL de avatar (opcional)</label>
-      <input type="url" id="avatar_url" name="avatar_url" value="<?= h($member['avatar_url']) ?>" placeholder="https://...">
+      <div class="upload-row">
+        <?php if (!empty($member['avatar_url'])): ?><img src="<?= h($member['avatar_url']) ?>" alt=""><?php endif; ?>
+        <input type="url" id="avatar_url" name="avatar_url" value="<?= h($member['avatar_url']) ?>" placeholder="https://..." style="flex:1;">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="avatar_file">O subí una imagen (opcional, tiene prioridad sobre la URL)</label>
+      <input type="file" id="avatar_file" name="avatar_file" accept="image/png,image/jpeg,image/webp,image/gif">
     </div>
 
     <div class="form-group">

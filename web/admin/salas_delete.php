@@ -15,6 +15,7 @@ $id = (int) ($_POST['id'] ?? 0);
 if ($id > 0) {
     $stmt = db()->prepare('DELETE FROM channels WHERE id = :id');
     $stmt->execute(['id' => $id]);
+    audit_log('Sala eliminada', 'id ' . $id);
     flash_set('Sala eliminada.');
 }
 

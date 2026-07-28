@@ -51,6 +51,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors[] = 'La fecha de nacimiento no es válida.';
             }
         }
+        if (empty($errors) && !captcha_check((string) ($_POST['captcha_token'] ?? ''), (string) ($_POST['captcha_answer'] ?? ''))) {
+            $errors[] = 'La respuesta de seguridad no es correcta.';
+        }
 
         if (empty($errors)) {
             $verifyToken = random_token();
@@ -151,6 +154,8 @@ require __DIR__ . '/includes/header.php';
             <label for="reason">¿Por qué querés ser IRCop?</label>
             <textarea id="reason" name="reason" required style="min-height: 120px;"><?= h($form['reason']) ?></textarea>
           </div>
+
+          <?= captcha_field() ?>
 
           <div class="form-actions">
             <button class="btn btn-primary" type="submit">Enviar postulación</button>

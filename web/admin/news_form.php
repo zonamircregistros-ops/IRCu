@@ -11,6 +11,7 @@ $news = [
     'slug' => '',
     'excerpt' => '',
     'body' => '',
+    'cover_image' => '',
     'is_published' => 1,
     'published_at' => date('Y-m-d\TH:i'),
 ];
@@ -37,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $slugInput = trim((string) ($_POST['slug'] ?? ''));
     $news['slug'] = $slugInput !== '' ? slugify($slugInput) : slugify($news['title']);
     $news['excerpt'] = trim((string) ($_POST['excerpt'] ?? ''));
-    $news['body'] = trim((string) ($_POST['body'] ?? ''));
+    $news['body'] = sanitize_html_content((string) ($_POST['body'] ?? ''));
     $news['is_published'] = isset($_POST['is_published']) ? 1 : 0;
     $publishedAtInput = trim((string) ($_POST['published_at'] ?? ''));
     $news['published_at'] = $publishedAtInput !== '' ? $publishedAtInput : date('Y-m-d\TH:i');
@@ -48,16 +49,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($news['slug'] === '') {
         $errors[] = 'No se pudo generar un slug válido, elegí un título distinto.';
     }
-    if ($news['body'] === '') {
+    if (trim(strip_tags($news['body'])) === '' && strpos($news['body'], '<img') === false) {
         $errors[] = 'El contenido es obligatorio.';
     }
 
     if (empty($errors)) {
+        try {
+            $uploadedCover = handle_uploaded_image('cover_file', 'news');
+        } catch (\RuntimeException $e) {
+            $errors[] = $e->getMessage();
+        }
+    }
+
+    if (empty($errors)) {
+        if ($uploadedCover !== null) {
+            $news['cover_image'] = $uploadedCover;
+        }
         $publishedAtSql = date('Y-m-d H:i:s', strtotime($news['published_at']));
         try {
             if ($isEdit) {
                 $stmt = db()->prepare(
-                    'UPDATE news SET title = :title, slug = :slug, excerpt = :excerpt, body = :body,
+                    'UPDATE news SET title = :title, slug = :slug, excerpt = :excerpt, body = :body, cover_image = :cover_image,
                      is_published = :is_published, published_at = :published_at WHERE id = :id'
                 );
                 $stmt->execute([
@@ -65,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'slug' => $news['slug'],
                     'excerpt' => $news['excerpt'] ?: null,
                     'body' => $news['body'],
+                    'cover_image' => $news['cover_image'] ?: null,
                     'is_published' => $news['is_published'],
                     'published_at' => $publishedAtSql,
                     'id' => $id,
@@ -72,14 +85,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash_set('Noticia actualizada.');
             } else {
                 $stmt = db()->prepare(
-                    'INSERT INTO news (title, slug, excerpt, body, is_published, published_at)
-                     VALUES (:title, :slug, :excerpt, :body, :is_published, :published_at)'
+                    'INSERT INTO news (title, slug, excerpt, body, cover_image, is_published, published_at)
+                     VALUES (:title, :slug, :excerpt, :body, :cover_image, :is_published, :published_at)'
                 );
                 $stmt->execute([
                     'title' => $news['title'],
                     'slug' => $news['slug'],
                     'excerpt' => $news['excerpt'] ?: null,
                     'body' => $news['body'],
+                    'cover_image' => $news['cover_image'] ?: null,
                     'is_published' => $news['is_published'],
                     'published_at' => $publishedAtSql,
                 ]);
@@ -108,7 +122,7 @@ require __DIR__ . '/includes/admin_header.php';
 <?php endif; ?>
 
 <div class="admin-card">
-  <form class="admin-form" method="post" action="news_form.php">
+  <form class="admin-form" method="post" action="news_form.php" enctype="multipart/form-data">
     <?= csrf_field() ?>
     <?php if ($isEdit): ?><input type="hidden" name="id" value="<?= (int) $id ?>"><?php endif; ?>
 
@@ -128,8 +142,31 @@ require __DIR__ . '/includes/admin_header.php';
     </div>
 
     <div class="form-group">
-      <label for="body">Contenido</label>
-      <textarea id="body" name="body" required style="min-height: 220px;"><?= h($news['body']) ?></textarea>
+      <label>Contenido</label>
+      <div class="wysiwyg-editor" data-target="body">
+        <div class="wysiwyg-toolbar">
+          <button type="button" data-command="bold" title="Negrita"><b>B</b></button>
+          <button type="button" data-command="italic" title="Cursiva"><i>I</i></button>
+          <button type="button" data-command="underline" title="Subrayado"><u>U</u></button>
+          <button type="button" data-command="formatBlock" data-value="H2" title="Título">H2</button>
+          <button type="button" data-command="formatBlock" data-value="BLOCKQUOTE" title="Cita">❝</button>
+          <button type="button" data-command="insertUnorderedList" title="Lista">• Lista</button>
+          <button type="button" data-command="insertOrderedList" title="Lista numerada">1. Lista</button>
+          <button type="button" data-command="createLink" title="Link">🔗</button>
+          <button type="button" data-command="insertImage" title="Imagen">🖼️</button>
+          <button type="button" data-command="removeFormat" title="Quitar formato">✕</button>
+        </div>
+        <div class="wysiwyg-content" contenteditable="true"></div>
+      </div>
+      <textarea id="body" name="body" hidden><?= $news['body'] ?></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="cover_file">Imagen de portada (opcional)</label>
+      <div class="upload-row">
+        <?php if (!empty($news['cover_image'])): ?><img src="<?= h($news['cover_image']) ?>" alt=""><?php endif; ?>
+        <input type="file" id="cover_file" name="cover_file" accept="image/png,image/jpeg,image/webp,image/gif">
+      </div>
     </div>
 
     <div class="form-group">

@@ -44,6 +44,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
+        try {
+            $uploadedAvatar = handle_uploaded_image('avatar_file', 'testimonials');
+            if ($uploadedAvatar !== null) {
+                $item['avatar_url'] = $uploadedAvatar;
+            }
+        } catch (\RuntimeException $e) {
+            $errors[] = $e->getMessage();
+        }
+    }
+
+    if (empty($errors)) {
         $params = [
             'author_nick' => $item['author_nick'],
             'quote' => $item['quote'],
@@ -89,7 +100,7 @@ require __DIR__ . '/includes/admin_header.php';
 <?php endif; ?>
 
 <div class="admin-card">
-  <form class="admin-form" method="post" action="testimonials_form.php">
+  <form class="admin-form" method="post" action="testimonials_form.php" enctype="multipart/form-data">
     <?= csrf_field() ?>
     <?php if ($isEdit): ?><input type="hidden" name="id" value="<?= (int) $id ?>"><?php endif; ?>
 
@@ -110,7 +121,15 @@ require __DIR__ . '/includes/admin_header.php';
 
     <div class="form-group">
       <label for="avatar_url">URL de avatar (opcional)</label>
-      <input type="url" id="avatar_url" name="avatar_url" value="<?= h($item['avatar_url']) ?>" placeholder="https://...">
+      <div class="upload-row">
+        <?php if (!empty($item['avatar_url'])): ?><img src="<?= h($item['avatar_url']) ?>" alt=""><?php endif; ?>
+        <input type="url" id="avatar_url" name="avatar_url" value="<?= h($item['avatar_url']) ?>" placeholder="https://..." style="flex:1;">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="avatar_file">O subí una imagen (opcional, tiene prioridad sobre la URL)</label>
+      <input type="file" id="avatar_file" name="avatar_file" accept="image/png,image/jpeg,image/webp,image/gif">
     </div>
 
     <div class="form-group">

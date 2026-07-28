@@ -39,18 +39,26 @@ require __DIR__ . '/includes/header.php';
         <?php if (empty($grouped[$slug])): ?>
           <p class="empty-note">Todavía no hay salas cargadas en esta categoría.</p>
         <?php else: ?>
-          <div class="channel-grid">
-            <?php foreach ($grouped[$slug] as $channel): ?>
-              <a class="channel-card <?= $channel['is_nsfw'] ? 'is-nsfw' : '' ?>" href="<?= h(webchat_link($channel['name'])) ?>" target="_blank" rel="noopener">
-                <div class="channel-name">
-                  #<?= h($channel['name']) ?>
-                  <?php if ($channel['is_nsfw']): ?><span class="nsfw-tag">18+</span><?php endif; ?>
-                </div>
-                <?php if (!empty($channel['description'])): ?>
-                  <p><?= h($channel['description']) ?></p>
-                <?php endif; ?>
-              </a>
-            <?php endforeach; ?>
+          <div class="<?= $slug === 'adultos' ? 'age-gate' : '' ?>" id="<?= $slug === 'adultos' ? 'age-gate' : '' ?>">
+            <?php if ($slug === 'adultos'): ?>
+              <div class="age-gate-overlay">
+                <p>🔞 Confirmá tu edad para ver estas salas.</p>
+                <button type="button" class="btn btn-primary" id="age-gate-confirm">Soy mayor de 18 años</button>
+              </div>
+            <?php endif; ?>
+            <div class="channel-grid<?= $slug === 'adultos' ? ' age-gate-content' : '' ?>">
+              <?php foreach ($grouped[$slug] as $channel): ?>
+                <a class="channel-card <?= $channel['is_nsfw'] ? 'is-nsfw' : '' ?>" href="<?= h(webchat_link($channel['name'])) ?>" target="_blank" rel="noopener">
+                  <div class="channel-name">
+                    #<?= h($channel['name']) ?>
+                    <?php if ($channel['is_nsfw']): ?><span class="nsfw-tag">18+</span><?php endif; ?>
+                  </div>
+                  <?php if (!empty($channel['description'])): ?>
+                    <p><?= h($channel['description']) ?></p>
+                  <?php endif; ?>
+                </a>
+              <?php endforeach; ?>
+            </div>
           </div>
         <?php endif; ?>
       </div>

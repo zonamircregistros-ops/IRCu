@@ -51,6 +51,7 @@ if ($id > 0) {
             send_mail($request['contact'], 'Tu solicitud de Natasha Bouncer fue rechazada', $body, setting('natasha_mail_from'), 'Natasha Bouncer');
         }
 
+        audit_log('Solicitud BNC actualizada', $request['nick'] . ' -> ' . $status);
         flash_set('Solicitud actualizada' . ($status === 'aprobado' ? ' y contraseña generada.' : '.'));
     } else {
         flash_set('Solicitud actualizada.');

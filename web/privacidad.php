@@ -63,9 +63,10 @@ require __DIR__ . '/includes/header.php';
 
     <h2>Tus derechos</h2>
     <p>
-      Podés pedirnos en cualquier momento acceder, corregir o eliminar los datos que nos
-      diste. Escribinos a <a href="mailto:<?= h(setting('staff_email')) ?>"><?= h(setting('staff_email')) ?></a>
-      o abrí un <a href="/tickets.php">ticket</a>.
+      Podés pedirnos en cualquier momento acceder, exportar o eliminar los datos que nos
+      diste desde <a href="/mis-datos.php">Mis datos personales</a>, escribirnos a
+      <a href="mailto:<?= h(setting('staff_email')) ?>"><?= h(setting('staff_email')) ?></a>
+      o abrir un <a href="/tickets.php">ticket</a>.
     </p>
 
     <h2>Cambios a esta política</h2>

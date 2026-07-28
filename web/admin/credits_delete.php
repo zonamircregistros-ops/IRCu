@@ -15,6 +15,7 @@ $id = (int) ($_POST['id'] ?? 0);
 if ($id > 0) {
     $stmt = db()->prepare('DELETE FROM credits WHERE id = :id');
     $stmt->execute(['id' => $id]);
+    audit_log('Crédito eliminado', 'id ' . $id);
     flash_set('Crédito eliminado.');
 }
 

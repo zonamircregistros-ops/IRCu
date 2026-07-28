@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         session_regenerate_id(true);
         $_SESSION['admin_id'] = $admin['id'];
         $_SESSION['admin_user'] = $admin['username'];
+        audit_log('Inicio de sesión');
         header('Location: index.php');
         exit;
     }
@@ -63,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <button class="btn btn-primary btn-lg btn-block" type="submit">Entrar</button>
       </form>
+      <a class="back-link" href="forgot_password.php">¿Olvidaste tu contraseña?</a>
     </div>
   </div>
 </body>

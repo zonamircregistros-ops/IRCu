@@ -150,6 +150,7 @@ body.admin-body {
 .pill-on { background: rgba(52,226,138,0.15); color: #34e28a; }
 .pill-off { background: rgba(255,31,77,0.15); color: var(--accent); }
 .pill-nsfw { background: rgba(255,31,77,0.18); color: var(--accent); }
+.pill-warn { background: rgba(255,183,3,0.16); color: #ffb703; }
 
 .admin-form { display: grid; gap: 18px; max-width: 560px; }
 
@@ -196,6 +197,64 @@ body.admin-body {
 }
 
 .form-check input { width: 18px; height: 18px; }
+
+/* Editor WYSIWYG (noticias) */
+.wysiwyg-editor {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 10px);
+  overflow: hidden;
+}
+
+.wysiwyg-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--border);
+}
+
+.wysiwyg-toolbar button {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.wysiwyg-toolbar button:hover {
+  border-color: var(--border);
+  background: rgba(255,255,255,0.06);
+}
+
+.wysiwyg-content {
+  min-height: 220px;
+  padding: 14px;
+  color: var(--text);
+  outline: none;
+  line-height: 1.6;
+}
+
+.wysiwyg-content img { max-width: 100%; border-radius: 8px; }
+
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.upload-row img {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+}
 
 .form-actions {
   display: flex;

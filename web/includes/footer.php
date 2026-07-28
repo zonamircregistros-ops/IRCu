@@ -40,6 +40,8 @@
         <a href="/donaciones.php">Donar</a>
         <a href="/privacidad.php">Privacidad</a>
         <a href="/terminos.php">Términos</a>
+        <a href="/mis-datos.php">Mis datos</a>
+        <a href="/legal-abuso.php">Reportar abuso</a>
       </div>
     </div>
   </div>

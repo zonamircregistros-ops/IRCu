@@ -42,6 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Completá todos los campos obligatorios.';
         } elseif (!filter_var($form['requester_email'], FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Ingresá un email válido.';
+        } elseif (!captcha_check((string) ($_POST['captcha_token'] ?? ''), (string) ($_POST['captcha_answer'] ?? ''))) {
+            $errors[] = 'La respuesta de seguridad no es correcta.';
         }
 
         if (empty($errors)) {
@@ -152,6 +154,8 @@ require __DIR__ . '/includes/header.php';
             <label for="message">Contanos qué necesitás</label>
             <textarea id="message" name="message" required style="min-height: 140px;"><?= h($form['message']) ?></textarea>
           </div>
+
+          <?= captcha_field() ?>
 
           <div class="form-actions">
             <button class="btn btn-primary" type="submit">Crear ticket</button>

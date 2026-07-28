@@ -3,6 +3,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/mailer.php';
+require_once __DIR__ . '/error_handler.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start([
+        'cookie_httponly' => true,
+        'cookie_samesite' => 'Lax',
+    ]);
+}
 
 function h(?string $value): string
 {
@@ -41,6 +49,8 @@ function get_settings(): array
         'donation_paypal_url'     => '',
         'donation_crypto_network' => '',
         'donation_crypto_address' => '',
+        'donation_goal_amount' => '0',
+        'donation_goal_raised' => '0',
     ];
 
     try {
@@ -132,7 +142,7 @@ function slugify(string $text): string
  */
 function get_news_list(bool $publishedOnly = true, ?int $limit = null): array
 {
-    $sql = 'SELECT id, title, slug, excerpt, published_at FROM news';
+    $sql = 'SELECT id, title, slug, excerpt, body, cover_image, published_at FROM news';
     if ($publishedOnly) {
         $sql .= ' WHERE is_published = 1 AND published_at <= NOW()';
     }
@@ -335,4 +345,129 @@ function track_page_view(string $path): void
     } catch (PDOException $e) {
         // La analítica nunca debe romper la carga de la página.
     }
+}
+
+/**
+ * Registra una acción del panel de administración (auditoría interna).
+ */
+function audit_log(string $action, string $details = ''): void
+{
+    try {
+        db()->prepare('INSERT INTO admin_audit_log (admin_user, action, details) VALUES (:user, :action, :details)')
+            ->execute([
+                'user' => $_SESSION['admin_user'] ?? 'desconocido',
+                'action' => $action,
+                'details' => $details !== '' ? substr($details, 0, 255) : null,
+            ]);
+    } catch (PDOException $e) {
+        // La auditoría nunca debe romper la acción que la disparó.
+    }
+}
+
+/**
+ * Genera una pregunta matemática simple (captcha propio, sin servicios de
+ * terceros) y guarda la respuesta en sesión para validarla al enviar el form.
+ *
+ * @return array{token: string, question: string}
+ */
+function captcha_new(string $lang = 'es'): array
+{
+    $a = random_int(1, 9);
+    $b = random_int(1, 9);
+    $token = bin2hex(random_bytes(8));
+    $_SESSION['captcha'][$token] = $a + $b;
+    $question = $lang === 'en' ? "How much is {$a} + {$b}?" : "¿Cuánto es {$a} + {$b}?";
+    return ['token' => $token, 'question' => $question];
+}
+
+/**
+ * Valida la respuesta de un captcha generado por captcha_new(). Consume el
+ * token para que no se pueda reutilizar la misma respuesta dos veces.
+ */
+function captcha_check(string $token, string $answer): bool
+{
+    if (!isset($_SESSION['captcha'][$token])) {
+        return false;
+    }
+    $expected = $_SESSION['captcha'][$token];
+    unset($_SESSION['captcha'][$token]);
+    return is_numeric($answer) && (int) $answer === $expected;
+}
+
+/**
+ * Renderiza el campo de captcha propio (pregunta + input) para un formulario
+ * público. Genera un desafío nuevo cada vez que se llama, así que hay que
+ * llamarla una sola vez por render del formulario (inclusive tras un error).
+ */
+function captcha_field(string $lang = 'es'): string
+{
+    $captcha = captcha_new($lang);
+    return '<div class="form-group">'
+        . '<label for="captcha_answer">' . h($captcha['question']) . '</label>'
+        . '<input type="hidden" name="captcha_token" value="' . h($captcha['token']) . '">'
+        . '<input type="text" inputmode="numeric" id="captcha_answer" name="captcha_answer" required maxlength="2" autocomplete="off">'
+        . '</div>';
+}
+
+/**
+ * Sanea el HTML generado por el editor WYSIWYG de noticias antes de
+ * guardarlo: solo se permiten un puñado de tags de formato de texto, y se
+ * remueven atributos de evento y hrefs/src con javascript: como defensa
+ * en profundidad (el contenido ya lo escribe un admin autenticado).
+ */
+function sanitize_html_content(string $html): string
+{
+    $allowed = '<p><br><b><strong><i><em><u><a><ul><ol><li><h2><h3><h4><blockquote><img><code><pre>';
+    $html = strip_tags($html, $allowed);
+    $html = preg_replace('/\son\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $html) ?? $html;
+    $html = preg_replace('/(href|src)\s*=\s*("|\')\s*javascript:[^"\']*\2/i', '$1=$2$2', $html) ?? $html;
+    return $html;
+}
+
+/**
+ * Procesa una imagen subida por un formulario de admin (avatar, portada de
+ * noticia, etc). Valida tipo y tamaño, y la guarda en assets/uploads/{subdir}.
+ *
+ * @return string|null ruta relativa (p.ej. "/assets/uploads/staff/xxx.jpg"), o
+ *                      null si no se subió ningún archivo. Lanza RuntimeException
+ *                      si el archivo subido no es válido.
+ */
+function handle_uploaded_image(string $fieldName, string $subdir): ?string
+{
+    if (empty($_FILES[$fieldName]) || $_FILES[$fieldName]['error'] === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    $file = $_FILES[$fieldName];
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new \RuntimeException('No se pudo subir el archivo (código ' . $file['error'] . ').');
+    }
+    if ($file['size'] > 3 * 1024 * 1024) {
+        throw new \RuntimeException('La imagen no puede pesar más de 3 MB.');
+    }
+
+    $allowed = [
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/webp' => 'webp',
+        'image/gif'  => 'gif',
+    ];
+
+    $finfo = new \finfo(FILEINFO_MIME_TYPE);
+    $mime = $finfo->file($file['tmp_name']);
+    if (!isset($allowed[$mime])) {
+        throw new \RuntimeException('Formato de imagen no soportado (solo JPG, PNG, WEBP o GIF).');
+    }
+
+    $destDir = __DIR__ . '/../assets/uploads/' . $subdir;
+    if (!is_dir($destDir)) {
+        mkdir($destDir, 0755, true);
+    }
+
+    $filename = bin2hex(random_bytes(12)) . '.' . $allowed[$mime];
+    if (!move_uploaded_file($file['tmp_name'], $destDir . '/' . $filename)) {
+        throw new \RuntimeException('No se pudo guardar la imagen subida.');
+    }
+
+    return '/assets/uploads/' . $subdir . '/' . $filename;
 }

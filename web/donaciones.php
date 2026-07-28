@@ -10,6 +10,9 @@ $cafecito = setting('donation_cafecito_url');
 $paypal = setting('donation_paypal_url');
 $cryptoAddress = setting('donation_crypto_address');
 $cryptoNetwork = setting('donation_crypto_network');
+$goalAmount = (float) setting('donation_goal_amount');
+$goalRaised = (float) setting('donation_goal_raised');
+$goalPercent = $goalAmount > 0 ? min(100, (int) round($goalRaised / $goalAmount * 100)) : 0;
 
 require __DIR__ . '/includes/header.php';
 ?>
@@ -23,6 +26,23 @@ require __DIR__ . '/includes/header.php';
     </p>
   </div>
 </section>
+
+<?php if ($goalAmount > 0): ?>
+<section class="section section-tight">
+  <div class="container container-narrow">
+    <div class="donation-goal">
+      <div class="donation-goal-head">
+        <span>Meta de este mes</span>
+        <span>US$<?= number_format($goalRaised, 0) ?> / US$<?= number_format($goalAmount, 0) ?></span>
+      </div>
+      <div class="donation-goal-track">
+        <div class="donation-goal-fill" style="width: <?= $goalPercent ?>%;"></div>
+      </div>
+      <p class="donation-goal-percent"><?= $goalPercent ?>% alcanzado</p>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
 
 <section class="section">
   <div class="container">

@@ -33,6 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Todos los campos son obligatorios.';
         } elseif (!filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Ingresá un email válido.';
+        } elseif (!captcha_check((string) ($_POST['captcha_token'] ?? ''), (string) ($_POST['captcha_answer'] ?? ''))) {
+            $errors[] = 'La respuesta de seguridad no es correcta.';
         }
 
         if (empty($errors)) {
@@ -111,6 +113,8 @@ require __DIR__ . '/includes/header.php';
             <label for="reason">Motivo de la apelación</label>
             <textarea id="reason" name="reason" required style="min-height: 140px;"><?= h($form['reason']) ?></textarea>
           </div>
+
+          <?= captcha_field() ?>
 
           <div class="form-actions">
             <button class="btn btn-primary" type="submit">Enviar apelación</button>

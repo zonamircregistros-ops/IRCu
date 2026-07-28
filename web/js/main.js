@@ -40,6 +40,74 @@ mainNav.querySelectorAll('a').forEach((link) => {
   });
 })();
 
+// Aviso de edad / NSFW: bloquea las salas de "adultos" hasta confirmar 18+.
+(() => {
+  const gate = document.getElementById('age-gate');
+  const confirmBtn = document.getElementById('age-gate-confirm');
+  if (!gate || !confirmBtn) return;
+  const STORAGE_KEY = 'chateanos_age_confirmed';
+
+  let confirmed = false;
+  try {
+    confirmed = localStorage.getItem(STORAGE_KEY) === '1';
+  } catch (e) {
+    confirmed = false;
+  }
+
+  if (confirmed) {
+    gate.classList.add('is-confirmed');
+  }
+
+  confirmBtn.addEventListener('click', () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, '1');
+    } catch (e) {
+      // Sin localStorage disponible: igual desbloqueamos para esta carga.
+    }
+    gate.classList.add('is-confirmed');
+  });
+})();
+
+// Compartir noticia con la Web Share API nativa, si el navegador la soporta.
+(() => {
+  const btn = document.getElementById('native-share-btn');
+  if (!btn) return;
+  if (navigator.share) {
+    btn.hidden = false;
+    btn.addEventListener('click', () => {
+      navigator.share({
+        title: btn.dataset.text,
+        url: btn.dataset.url,
+      }).catch(() => {});
+    });
+  }
+})();
+
+// Botón "instalar app" (PWA) usando el evento nativo del navegador.
+(() => {
+  const installBtn = document.getElementById('pwa-install-btn');
+  if (!installBtn) return;
+  let deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.hidden = false;
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    installBtn.hidden = true;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    installBtn.hidden = true;
+  });
+})();
+
 document.querySelectorAll('.copy-btn').forEach((btn) => {
   btn.addEventListener('click', async () => {
     const value = btn.getAttribute('data-copy');

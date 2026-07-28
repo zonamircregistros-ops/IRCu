@@ -26,6 +26,9 @@ $pageTitle = $article['title'];
 $activeNav = 'noticias';
 $pageDescription = $article['excerpt'] ?: setting('tagline');
 
+$shareUrl = 'https://chateanos.com/noticia.php?slug=' . rawurlencode($article['slug']);
+$shareText = $article['title'];
+
 require __DIR__ . '/includes/header.php';
 ?>
 
@@ -39,8 +42,20 @@ require __DIR__ . '/includes/header.php';
 
 <section class="section section-tight">
   <div class="container container-narrow">
+    <?php if (!empty($article['cover_image'])): ?>
+      <img class="news-cover" src="<?= h($article['cover_image']) ?>" alt="">
+    <?php endif; ?>
+
     <div class="news-body">
-      <?= nl2br(h($article['body'])) ?>
+      <?= sanitize_html_content($article['body']) ?>
+    </div>
+
+    <div class="share-row">
+      <span class="share-label">Compartir:</span>
+      <button type="button" class="share-btn" id="native-share-btn" data-url="<?= h($shareUrl) ?>" data-text="<?= h($shareText) ?>" hidden>🔗 Compartir</button>
+      <a class="share-btn" href="https://wa.me/?text=<?= rawurlencode($shareText . ' ' . $shareUrl) ?>" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="share-btn" href="https://twitter.com/intent/tweet?text=<?= rawurlencode($shareText) ?>&url=<?= rawurlencode($shareUrl) ?>" target="_blank" rel="noopener">X / Twitter</a>
+      <a class="share-btn" href="https://www.facebook.com/sharer/sharer.php?u=<?= rawurlencode($shareUrl) ?>" target="_blank" rel="noopener">Facebook</a>
     </div>
   </div>
 </section>

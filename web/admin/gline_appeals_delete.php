@@ -15,6 +15,7 @@ $id = (int) ($_POST['id'] ?? 0);
 if ($id > 0) {
     $stmt = db()->prepare('DELETE FROM gline_appeals WHERE id = :id');
     $stmt->execute(['id' => $id]);
+    audit_log('Apelación eliminada', 'id ' . $id);
     flash_set('Apelación eliminada.');
 }
 

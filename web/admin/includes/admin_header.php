@@ -27,6 +27,9 @@ $adminNavItems = [
     'credits'              => ['href' => 'credits.php',            'label' => 'Créditos'],
     'service_status'       => ['href' => 'service_status.php',     'label' => 'Estado del servicio'],
     'analytics'            => ['href' => 'analytics.php',          'label' => 'Analítica'],
+    'data_requests'        => ['href' => 'data_requests.php',      'label' => 'Datos personales'],
+    'audit_log'            => ['href' => 'audit_log.php',          'label' => 'Auditoría'],
+    'errors'               => ['href' => 'errors.php',             'label' => 'Errores'],
     'settings'             => ['href' => 'settings.php',           'label' => 'Ajustes del sitio'],
     'account'              => ['href' => 'account.php',            'label' => 'Mi cuenta'],
 ];

@@ -15,6 +15,7 @@ $id = (int) ($_POST['id'] ?? 0);
 if ($id > 0) {
     $stmt = db()->prepare('DELETE FROM tickets WHERE id = :id');
     $stmt->execute(['id' => $id]);
+    audit_log('Ticket eliminado', 'id ' . $id);
     flash_set('Ticket eliminado.');
 }
 

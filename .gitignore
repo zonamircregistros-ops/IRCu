@@ -1,1 +1,3 @@
 web/config.php
+web/assets/uploads/*
+!web/assets/uploads/.gitkeep

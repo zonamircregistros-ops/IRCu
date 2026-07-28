@@ -35,6 +35,8 @@ $fieldGroups = [
         'donation_paypal_url'     => 'URL de PayPal',
         'donation_crypto_network' => 'Red cripto (ej: Bitcoin (BTC))',
         'donation_crypto_address' => 'Dirección de wallet',
+        'donation_goal_amount'    => 'Meta mensual (USD, 0 para ocultar la barra)',
+        'donation_goal_raised'    => 'Recaudado este mes (USD, actualización manual)',
     ],
 ];
 
@@ -56,6 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($values['webchat_url'] !== '' && !filter_var($values['webchat_url'], FILTER_VALIDATE_URL)) {
         $errors[] = 'La URL del webchat no es válida.';
     }
+    if ($values['donation_goal_amount'] !== '' && !is_numeric($values['donation_goal_amount'])) {
+        $errors[] = 'La meta de donación tiene que ser un número.';
+    }
+    if ($values['donation_goal_raised'] !== '' && !is_numeric($values['donation_goal_raised'])) {
+        $errors[] = 'Lo recaudado tiene que ser un número.';
+    }
 
     if (empty($errors)) {
         $stmt = db()->prepare(
@@ -65,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($values as $key => $value) {
             $stmt->execute(['k' => $key, 'v' => $value]);
         }
+        audit_log('Ajustes del sitio actualizados');
         flash_set('Ajustes guardados.');
         header('Location: settings.php');
         exit;

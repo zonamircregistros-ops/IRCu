@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_login();
 
 $statusLabels = ['abierto' => 'Abierto', 'aprobado' => 'Aprobado', 'rechazado' => 'Rechazado', 'cerrado' => 'Cerrado'];
-$categoryLabels = ['soporte' => 'Soporte', 'reclamo' => 'Reclamo', 'otro' => 'Otro'];
+$categoryLabels = ['soporte' => 'Soporte', 'reclamo' => 'Reclamo', 'otro' => 'Otro', 'legal_abuso' => 'Legal / Abuso'];
 
 $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
 $stmt = db()->prepare('SELECT * FROM tickets WHERE id = :id LIMIT 1');
@@ -39,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = db()->prepare('UPDATE tickets SET status = :status WHERE id = :id');
     $stmt->execute(['status' => $status, 'id' => $id]);
 
+    audit_log('Ticket actualizado', $ticket['subject'] . ' -> ' . $status);
     flash_set('Ticket actualizado.');
     header('Location: ticket_view.php?id=' . $id);
     exit;

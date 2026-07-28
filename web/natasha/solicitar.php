@@ -87,6 +87,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = $t['error_required'];
         } elseif (!filter_var($form['contact'], FILTER_VALIDATE_EMAIL)) {
             $errors[] = $t['error_email'];
+        } elseif (!captcha_check((string) ($_POST['captcha_token'] ?? ''), (string) ($_POST['captcha_answer'] ?? ''))) {
+            $errors[] = $lang === 'en' ? 'The security answer is not correct.' : 'La respuesta de seguridad no es correcta.';
         }
 
         if (empty($errors)) {
@@ -191,6 +193,8 @@ require __DIR__ . '/../includes/header.php';
             <label for="notes"><?= h($t['notes']) ?></label>
             <textarea id="notes" name="notes" maxlength="500"><?= h($form['notes']) ?></textarea>
           </div>
+
+          <?= captcha_field($lang) ?>
 
           <div class="form-actions">
             <button class="btn btn-primary" type="submit"><?= h($t['submit']) ?></button>

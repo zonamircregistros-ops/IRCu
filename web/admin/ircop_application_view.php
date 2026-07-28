@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = db()->prepare('UPDATE ircop_applications SET status = :status, admin_notes = :notes WHERE id = :id');
     $stmt->execute(['status' => $status, 'notes' => $notes ?: null, 'id' => $id]);
 
+    audit_log('Postulación IRCop actualizada', $app['username'] . ' -> ' . $status);
     flash_set('Postulación actualizada.');
     header('Location: ircop_applications.php');
     exit;

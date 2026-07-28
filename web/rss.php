@@ -12,9 +12,14 @@ function rss_escape(string $value): string
     return htmlspecialchars($value, ENT_QUOTES | ENT_XML1, 'UTF-8');
 }
 
+function rss_cdata(string $html): string
+{
+    return '<![CDATA[' . str_replace(']]>', ']]&gt;', $html) . ']]>';
+}
+
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 ?>
-<rss version="2.0">
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
 <channel>
   <title><?= rss_escape(setting('site_name')) ?> — Noticias</title>
   <link><?= rss_escape($base . '/noticias.php') ?></link>
@@ -28,6 +33,9 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     <pubDate><?= date(DATE_RSS, strtotime($item['published_at'])) ?></pubDate>
     <?php if (!empty($item['excerpt'])): ?>
     <description><?= rss_escape($item['excerpt']) ?></description>
+    <?php endif; ?>
+    <?php if (!empty($item['body'])): ?>
+    <content:encoded><?= rss_cdata(sanitize_html_content($item['body'])) ?></content:encoded>
     <?php endif; ?>
   </item>
 <?php endforeach; ?>

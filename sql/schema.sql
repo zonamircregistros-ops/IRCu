@@ -9,10 +9,54 @@ SET time_zone = '+00:00';
 -- admins: usuarios que pueden entrar al panel /admin
 -- --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS admins (
+  id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  username              VARCHAR(50)  NOT NULL UNIQUE,
+  password_hash         VARCHAR(255) NOT NULL,
+  email                 VARCHAR(160) NULL,
+  reset_token           VARCHAR(64)  NULL,
+  reset_token_expires   DATETIME     NULL,
+  created_at            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- admin_audit_log: quién hizo qué en el panel de administración
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS admin_audit_log (
   id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  username      VARCHAR(50)  NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,
-  created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+  admin_user    VARCHAR(50)  NOT NULL,
+  action        VARCHAR(160) NOT NULL,
+  details       VARCHAR(255) NULL,
+  created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- error_log: errores/excepciones no capturadas del sitio
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS error_log (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  severity      VARCHAR(20)  NOT NULL,
+  message       VARCHAR(500) NOT NULL,
+  file          VARCHAR(255) NULL,
+  line          INT UNSIGNED NULL,
+  request_uri   VARCHAR(255) NULL,
+  created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- data_requests: pedidos de acceso/exportación/borrado de datos personales
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS data_requests (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email           VARCHAR(160) NOT NULL,
+  request_type    ENUM('exportar','eliminar') NOT NULL DEFAULT 'exportar',
+  details         TEXT         NULL,
+  admin_notes     TEXT         NULL,
+  status          ENUM('pendiente','en_proceso','completado') NOT NULL DEFAULT 'pendiente',
+  created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_status (status, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
@@ -66,6 +110,7 @@ CREATE TABLE IF NOT EXISTS news (
   slug          VARCHAR(180) NOT NULL UNIQUE,
   excerpt       VARCHAR(280) NULL,
   body          TEXT         NOT NULL,
+  cover_image   VARCHAR(255) NULL,
   is_published  TINYINT(1)   NOT NULL DEFAULT 1,
   published_at  DATETIME     NOT NULL,
   created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -175,7 +220,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   token             VARCHAR(64)  NOT NULL UNIQUE,
   subject           VARCHAR(160) NOT NULL,
-  category          ENUM('soporte','reclamo','otro') NOT NULL DEFAULT 'soporte',
+  category          ENUM('soporte','reclamo','otro','legal_abuso') NOT NULL DEFAULT 'soporte',
   requester_name    VARCHAR(80)  NOT NULL,
   requester_email   VARCHAR(160) NOT NULL,
   status            ENUM('abierto','aprobado','rechazado','cerrado') NOT NULL DEFAULT 'abierto',

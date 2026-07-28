@@ -34,7 +34,9 @@ INSERT INTO settings (setting_key, setting_value) VALUES
   ('donation_cafecito_url',    'https://cafecito.app/chateanos'),
   ('donation_paypal_url',      'https://paypal.me/chateanos'),
   ('donation_crypto_network',  'Bitcoin (BTC)'),
-  ('donation_crypto_address',  'bc1qexampleaddressnotreal0000000000000')
+  ('donation_crypto_address',  'bc1qexampleaddressnotreal0000000000000'),
+  ('donation_goal_amount',     '200'),
+  ('donation_goal_raised',     '0')
 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
 
 INSERT INTO channels (name, category, description, is_nsfw, sort_order) VALUES

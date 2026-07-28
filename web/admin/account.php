@@ -4,8 +4,30 @@ require_once __DIR__ . '/includes/auth.php';
 require_login();
 
 $errors = [];
+$emailErrors = [];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+$stmt = db()->prepare('SELECT email FROM admins WHERE id = :id LIMIT 1');
+$stmt->execute(['id' => $_SESSION['admin_id']]);
+$currentEmail = (string) ($stmt->fetchColumn() ?: '');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'email') {
+    verify_csrf();
+
+    $newEmail = trim((string) ($_POST['email'] ?? ''));
+    if ($newEmail !== '' && !filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
+        $emailErrors[] = 'Ingresá un email válido.';
+    } else {
+        $stmt = db()->prepare('UPDATE admins SET email = :email WHERE id = :id');
+        $stmt->execute(['email' => $newEmail ?: null, 'id' => $_SESSION['admin_id']]);
+        audit_log('Email de recuperación actualizado');
+        flash_set('Email actualizado.');
+        header('Location: account.php');
+        exit;
+    }
+    $currentEmail = $newEmail;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'password') {
     verify_csrf();
 
     $current = (string) ($_POST['current_password'] ?? '');
@@ -30,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'hash' => password_hash($new, PASSWORD_DEFAULT),
             'id' => $_SESSION['admin_id'],
         ]);
+        audit_log('Contraseña propia actualizada');
         flash_set('Contraseña actualizada.');
         header('Location: account.php');
         exit;
@@ -48,11 +71,31 @@ require __DIR__ . '/includes/admin_header.php';
 <?php if (!empty($errors)): ?>
   <div class="flash flash-error"><?= h(implode(' ', $errors)) ?></div>
 <?php endif; ?>
+<?php if (!empty($emailErrors)): ?>
+  <div class="flash flash-error"><?= h(implode(' ', $emailErrors)) ?></div>
+<?php endif; ?>
+
+<div class="admin-card">
+  <h2 style="margin-top:0; font-family: var(--font-display); font-size:1.1rem;">Email de recuperación</h2>
+  <p style="color: var(--text-dim); font-size:0.88rem;">Se usa solo para poder mandarte un link si olvidás tu contraseña.</p>
+  <form class="admin-form" method="post" action="account.php">
+    <?= csrf_field() ?>
+    <input type="hidden" name="form" value="email">
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" value="<?= h($currentEmail) ?>" maxlength="160">
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">Guardar email</button>
+    </div>
+  </form>
+</div>
 
 <div class="admin-card">
   <h2 style="margin-top:0; font-family: var(--font-display); font-size:1.1rem;">Cambiar contraseña</h2>
   <form class="admin-form" method="post" action="account.php">
     <?= csrf_field() ?>
+    <input type="hidden" name="form" value="password">
     <div class="form-group">
       <label for="current_password">Contraseña actual</label>
       <input type="password" id="current_password" name="current_password" autocomplete="current-password" required>

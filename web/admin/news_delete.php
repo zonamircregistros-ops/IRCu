@@ -15,6 +15,7 @@ $id = (int) ($_POST['id'] ?? 0);
 if ($id > 0) {
     $stmt = db()->prepare('DELETE FROM news WHERE id = :id');
     $stmt->execute(['id' => $id]);
+    audit_log('Noticia eliminada', 'id ' . $id);
     flash_set('Noticia eliminada.');
 }
 

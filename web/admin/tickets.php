@@ -5,7 +5,7 @@ $activeAdminNav = 'tickets';
 require __DIR__ . '/includes/admin_header.php';
 
 $statusLabels = ['abierto' => 'Abierto', 'aprobado' => 'Aprobado', 'rechazado' => 'Rechazado', 'cerrado' => 'Cerrado'];
-$categoryLabels = ['soporte' => 'Soporte', 'reclamo' => 'Reclamo', 'otro' => 'Otro'];
+$categoryLabels = ['soporte' => 'Soporte', 'reclamo' => 'Reclamo', 'otro' => 'Otro', 'legal_abuso' => 'Legal / Abuso'];
 
 $perPage = 20;
 $page = max(1, (int) ($_GET['page'] ?? 1));

@@ -88,6 +88,7 @@ $navItems = [
 
     <div class="header-actions">
       <a class="search-icon-btn" href="/buscar.php" aria-label="Buscar en el sitio">🔎</a>
+      <button class="btn btn-ghost btn-sm" id="pwa-install-btn" type="button" hidden>📲 Instalar app</button>
       <a class="btn btn-primary btn-sm" href="<?= h(webchat_link()) ?>" target="_blank" rel="noopener">Entrar al webchat</a>
       <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menú" aria-expanded="false">
         <span></span><span></span><span></span>
